@@ -1,0 +1,27 @@
+api_version = "2026-04"
+
+[[extensions]]
+handle = "payment-rules"
+name = "t:name"
+description = "t:description"
+
+uid = "de1e42f7-1fac-82d9-7a6b-3fe91198d7481d07a9b0"
+
+type = "function"
+
+  [[extensions.targeting]]
+  target = "purchase.payment-customization.run"
+  input_query = "src/run.graphql"
+  export = "run"
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"
+
+  [extensions.ui.paths]
+  create = "/app/rules/:functionId/new"
+  details = "/app/rules/:functionId/:id"
+
+  [extensions.input.variables]
+  namespace = "$app:payment-rules"
+  key = "input-variables"

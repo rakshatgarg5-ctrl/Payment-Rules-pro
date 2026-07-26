@@ -1,0 +1,54 @@
+{
+  "cart": {
+    "cost": {
+      "totalAmount": {
+        "amount": "150.0"
+      }
+    },
+    "buyerIdentity": {
+      "customer": {
+        "hasTags": [
+          {
+            "tag": "wholesale",
+            "hasTag": true
+          }
+        ]
+      }
+    },
+    "deliveryGroups": [
+      {
+        "deliveryAddress": {
+          "countryCode": "US"
+        }
+      }
+    ],
+    "lines": [
+      {
+        "merchandise": {
+          "product": {
+            "id": "gid://shopify/Product/1"
+          }
+        }
+      }
+    ]
+  },
+  "paymentMethods": [
+    {
+      "id": "gid://shopify/PaymentCustomizationPaymentMethod/1",
+      "name": "Cash on Delivery"
+    },
+    {
+      "id": "gid://shopify/PaymentCustomizationPaymentMethod/2",
+      "name": "PayPal"
+    },
+    {
+      "id": "gid://shopify/PaymentCustomizationPaymentMethod/3",
+      "name": "Money Order"
+    }
+  ],
+  "paymentCustomization": {
+    "metafield": {
+      "value": "{\"enabled\":true,\"conditions\":{\"logic\":\"AND\",\"items\":[{\"type\":\"cart_total\",\"operator\":\"gte\",\"value\":100},{\"type\":\"country\",\"operator\":\"in\",\"values\":[\"US\"]},{\"type\":\"customer_tag\",\"operator\":\"includes_any\",\"values\":[\"wholesale\"]}]},\"actions\":{\"hide\":[\"Cash on Delivery\"],\"rename\":[{\"from\":\"Money Order\",\"to\":\"Bank Transfer\"}],\"sort\":[\"PayPal\",\"Money Order\",\"Cash on Delivery\"]}}"
+    }
+  }
+}

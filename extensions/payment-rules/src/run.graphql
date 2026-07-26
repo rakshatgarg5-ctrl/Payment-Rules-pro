@@ -1,0 +1,40 @@
+query RunInput($tags_list: [String!]! = []) {
+  cart {
+    cost {
+      totalAmount {
+        amount
+      }
+    }
+    buyerIdentity {
+      customer {
+        hasTags(tags: $tags_list) {
+          hasTag
+          tag
+        }
+      }
+    }
+    deliveryGroups {
+      deliveryAddress {
+        countryCode
+      }
+    }
+    lines {
+      merchandise {
+        ... on ProductVariant {
+          product {
+            id
+          }
+        }
+      }
+    }
+  }
+  paymentMethods {
+    id
+    name
+  }
+  paymentCustomization {
+    metafield(namespace: "$app:payment-rules", key: "function-configuration") {
+      value
+    }
+  }
+}
