@@ -1,4 +1,6 @@
-import { useLoaderData } from "react-router";
+import { useEffect } from "react";
+import { useFetcher, useLoaderData } from "react-router";
+import { useAppBridge } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server.js";
 
@@ -33,17 +35,118 @@ export const loader = async ({ request }) => {
   };
 };
 
+export const action = async ({ request }) => {
+  const { admin } = await authenticate.admin(request);
+  const formData = await request.formData();
+  const intent = String(formData.get("intent") || "");
+  const id = String(formData.get("id") || "");
+  const gid = `gid://shopify/PaymentCustomization/${id}`;
+
+  if (!id) {
+    return { ok: false, errors: [{ message: "Missing rule id." }] };
+  }
+
+  if (intent === "toggle") {
+    const enabled = formData.get("enabled") === "true";
+    const response = await admin.graphql(
+      `#graphql
+        mutation togglePaymentCustomization($id: ID!, $enabled: Boolean!) {
+          paymentCustomizationUpdate(
+            id: $id
+            paymentCustomization: { enabled: $enabled }
+          ) {
+            paymentCustomization {
+              id
+              enabled
+            }
+            userErrors {
+              message
+            }
+          }
+        }`,
+      {
+        variables: { id: gid, enabled },
+      },
+    );
+    const responseJson = await response.json();
+    const errors =
+      responseJson.data?.paymentCustomizationUpdate?.userErrors || [];
+    if (errors.length > 0) {
+      return { ok: false, intent, errors };
+    }
+    return { ok: true, intent, enabled };
+  }
+
+  if (intent === "delete") {
+    const response = await admin.graphql(
+      `#graphql
+        mutation deletePaymentCustomization($id: ID!) {
+          paymentCustomizationDelete(id: $id) {
+            deletedId
+            userErrors {
+              message
+            }
+          }
+        }`,
+      {
+        variables: { id: gid },
+      },
+    );
+    const responseJson = await response.json();
+    const errors =
+      responseJson.data?.paymentCustomizationDelete?.userErrors || [];
+    if (errors.length > 0) {
+      return { ok: false, intent, errors };
+    }
+    return { ok: true, intent };
+  }
+
+  return { ok: false, errors: [{ message: "Unknown action." }] };
+};
+
 export default function Index() {
   const { functionHandle, rules } = useLoaderData();
+  const fetcher = useFetcher();
+  const shopify = useAppBridge();
   const createPath = `/app/rules/${functionHandle}/new`;
+  const isSubmitting = fetcher.state !== "idle";
+
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data) return;
+
+    if (fetcher.data.ok) {
+      if (fetcher.data.intent === "delete") {
+        shopify.toast.show("Rule deleted");
+      } else if (fetcher.data.intent === "toggle") {
+        shopify.toast.show(
+          fetcher.data.enabled ? "Rule activated" : "Rule deactivated",
+        );
+      }
+      return;
+    }
+
+    const message =
+      fetcher.data.errors?.[0]?.message || "Something went wrong.";
+    shopify.toast.show(message, { isError: true });
+  }, [fetcher.state, fetcher.data, shopify]);
+
+  const setEnabled = (rule, enabled) => {
+    if (rule.enabled === enabled || isSubmitting) return;
+    fetcher.submit(
+      { intent: "toggle", id: rule.id, enabled: String(enabled) },
+      { method: "post" },
+    );
+  };
+
+  const deleteRule = (rule) => {
+    if (isSubmitting) return;
+    if (!confirm(`Delete "${rule.title}"? This cannot be undone.`)) return;
+    fetcher.submit({ intent: "delete", id: rule.id }, { method: "post" });
+  };
 
   return (
     <s-page heading="Payment rules">
-      <s-button
-        slot="primary-action"
-        variant="primary"
-        href={createPath}
-      >
+      <s-button slot="primary-action" variant="primary" href={createPath}>
         Create rule
       </s-button>
 
@@ -61,32 +164,55 @@ export default function Index() {
             </s-paragraph>
           </s-box>
         ) : (
-          <s-stack direction="block" gap="base">
-            {rules.map((rule) => (
-              <s-box
-                key={rule.id}
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                borderColor="auto"
-              >
-                <s-stack direction="inline" gap="base" alignItems="center">
-                  <s-stack direction="block" gap="none" style={{ flex: 1 }}>
-                    <s-heading>{rule.title}</s-heading>
-                    <s-text tone="neutral">
-                      {rule.enabled ? "Active" : "Inactive"}
-                    </s-text>
-                  </s-stack>
-                  <s-button
-                    variant="secondary"
-                    href={`/app/rules/${functionHandle}/${rule.id}`}
-                  >
-                    Edit
-                  </s-button>
-                </s-stack>
-              </s-box>
-            ))}
-          </s-stack>
+          <s-table>
+            <s-table-header-row>
+              <s-table-header listSlot="primary">Title</s-table-header>
+              <s-table-header>Status</s-table-header>
+              <s-table-header>Actions</s-table-header>
+            </s-table-header-row>
+            <s-table-body>
+              {rules.map((rule) => (
+                <s-table-row key={rule.id}>
+                  <s-table-cell>
+                    <s-link href={`/app/rules/${functionHandle}/${rule.id}`}>
+                      {rule.title}
+                    </s-link>
+                  </s-table-cell>
+                  <s-table-cell>
+                    <s-stack direction="inline" gap="small">
+                      <s-button
+                        variant={rule.enabled ? "primary" : "secondary"}
+                        disabled={isSubmitting}
+                        onClick={() => setEnabled(rule, true)}
+                      >
+                        Active
+                      </s-button>
+                      <s-button
+                        variant={!rule.enabled ? "primary" : "secondary"}
+                        disabled={isSubmitting}
+                        onClick={() => setEnabled(rule, false)}
+                      >
+                        Inactive
+                      </s-button>
+                    </s-stack>
+                  </s-table-cell>
+                  <s-table-cell>
+                    <s-stack direction="inline" gap="base">
+                      <s-link href={`/app/rules/${functionHandle}/${rule.id}`}>
+                        Update
+                      </s-link>
+                      <s-link
+                        tone="critical"
+                        onClick={() => deleteRule(rule)}
+                      >
+                        Delete
+                      </s-link>
+                    </s-stack>
+                  </s-table-cell>
+                </s-table-row>
+              ))}
+            </s-table-body>
+          </s-table>
         )}
       </s-section>
 
