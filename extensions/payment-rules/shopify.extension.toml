@@ -19,8 +19,8 @@ type = "function"
   path = "dist/function.wasm"
 
   [extensions.ui.paths]
-  create = "/app/rules/:functionId/new"
-  details = "/app/rules/:functionId/:id"
+  create = "/app/rules/payment-rules/new"
+  details = "/app/rules/payment-rules/:id"
 
   [extensions.input.variables]
   namespace = "$app:payment-rules"

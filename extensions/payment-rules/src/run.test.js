@@ -29,8 +29,6 @@ function baseInput(overrides = {}) {
           conditions: { logic: "AND", items: [] },
           actions: {
             hide: ["Cash on Delivery"],
-            rename: [{ from: "Money Order", to: "Bank Transfer" }],
-            sort: ["PayPal", "Money Order", "Cash on Delivery"],
           },
         }),
       },
@@ -48,19 +46,10 @@ describe("payment rules run", () => {
     expect(result.operations).toEqual([]);
   });
 
-  it("applies hide, rename, and sort when conditions are empty", () => {
+  it("applies hide when conditions are empty", () => {
     const result = run(baseInput());
     expect(result.operations).toEqual([
       { hide: { paymentMethodId: paymentMethods[0].id } },
-      {
-        rename: {
-          paymentMethodId: paymentMethods[2].id,
-          name: "Bank Transfer",
-        },
-      },
-      { move: { paymentMethodId: paymentMethods[1].id, index: 0 } },
-      { move: { paymentMethodId: paymentMethods[2].id, index: 1 } },
-      { move: { paymentMethodId: paymentMethods[0].id, index: 2 } },
     ]);
   });
 

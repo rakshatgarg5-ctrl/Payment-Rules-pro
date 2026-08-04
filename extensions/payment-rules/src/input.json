@@ -48,7 +48,7 @@
   ],
   "paymentCustomization": {
     "metafield": {
-      "value": "{\"enabled\":true,\"conditions\":{\"logic\":\"AND\",\"items\":[{\"type\":\"cart_total\",\"operator\":\"gte\",\"value\":100},{\"type\":\"country\",\"operator\":\"in\",\"values\":[\"US\"]},{\"type\":\"customer_tag\",\"operator\":\"includes_any\",\"values\":[\"wholesale\"]}]},\"actions\":{\"hide\":[\"Cash on Delivery\"],\"rename\":[{\"from\":\"Money Order\",\"to\":\"Bank Transfer\"}],\"sort\":[\"PayPal\",\"Money Order\",\"Cash on Delivery\"]}}"
+      "value": "{\"enabled\":true,\"conditions\":{\"logic\":\"AND\",\"items\":[{\"type\":\"cart_total\",\"operator\":\"gte\",\"value\":100},{\"type\":\"country\",\"operator\":\"in\",\"values\":[\"US\"]},{\"type\":\"customer_tag\",\"operator\":\"includes_any\",\"values\":[\"wholesale\"]}]},\"actions\":{\"hide\":[\"Cash on Delivery\"]}}"
     }
   }
 }

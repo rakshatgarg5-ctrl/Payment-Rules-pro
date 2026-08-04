@@ -139,8 +139,6 @@ export function run(input) {
    *   conditions?: { logic?: string, items?: object[] }
    *   actions?: {
    *     hide?: string[]
-   *     rename?: { from: string, to: string }[]
-   *     sort?: string[]
    *   }
    * }}
    */
@@ -175,36 +173,6 @@ export function run(input) {
           paymentMethodId: method.id,
         },
       });
-    }
-  }
-
-  // Rename
-  for (const rename of actions.rename || []) {
-    if (!rename?.from || !rename?.to) continue;
-    const method = findMethod(paymentMethods, rename.from);
-    if (method) {
-      operations.push({
-        rename: {
-          paymentMethodId: method.id,
-          name: rename.to,
-        },
-      });
-    }
-  }
-
-  // Sort / reorder — move matched methods to preferred indices
-  const sortOrder = actions.sort || [];
-  let nextIndex = 0;
-  for (const sortName of sortOrder) {
-    const method = findMethod(paymentMethods, sortName);
-    if (method) {
-      operations.push({
-        move: {
-          paymentMethodId: method.id,
-          index: nextIndex,
-        },
-      });
-      nextIndex += 1;
     }
   }
 

@@ -18,8 +18,6 @@ const EMPTY_CONFIG = {
   conditions: { logic: "AND", items: [] },
   actions: {
     hide: [],
-    rename: [],
-    sort: [],
   },
 };
 
@@ -120,7 +118,7 @@ export const loader = async ({ params, request }) => {
 };
 
 export const action = async ({ params, request }) => {
-  const functionId = decodeURIComponent(params.functionId || "");
+  const functionHandle = decodeURIComponent(params.functionId || "");
   const { id } = params;
   const { admin } = await authenticate.admin(request);
   const formData = await request.formData();
@@ -144,7 +142,7 @@ export const action = async ({ params, request }) => {
   const tagsList = collectTags(config);
 
   const paymentCustomizationInput = {
-    functionId,
+    functionHandle,
     title,
     enabled,
     metafields: [
@@ -251,10 +249,6 @@ export default function RuleEditor() {
     () => (config.actions.hide || []).join(", "),
     [config.actions.hide],
   );
-  const sortText = useMemo(
-    () => (config.actions.sort || []).join(", "),
-    [config.actions.sort],
-  );
 
   const updateCondition = (index, patch) => {
     setConfig((prev) => {
@@ -285,17 +279,6 @@ export default function RuleEditor() {
         items: [...(prev.conditions.items || []), defaultCondition(type)],
       },
     }));
-  };
-
-  const updateRename = (index, patch) => {
-    setConfig((prev) => {
-      const rename = [...(prev.actions.rename || [])];
-      rename[index] = { ...rename[index], ...patch };
-      return {
-        ...prev,
-        actions: { ...prev.actions, rename },
-      };
-    });
   };
 
   const handleSubmit = (event) => {
@@ -540,80 +523,6 @@ export default function RuleEditor() {
                   actions: {
                     ...prev.actions,
                     hide: parseCsv(e.currentTarget.value),
-                  },
-                }))
-              }
-            />
-
-            <s-heading>Rename payment methods</s-heading>
-            <s-paragraph>
-              Wallet methods (Shop Pay, Apple Pay, Google Pay) cannot be
-              renamed.
-            </s-paragraph>
-            {(config.actions.rename || []).map((row, index) => (
-              <s-grid
-                key={index}
-                gap="base"
-                gridTemplateColumns="1fr 1fr auto"
-                alignItems="end"
-              >
-                <s-text-field
-                  label="From (name contains)"
-                  value={row.from || ""}
-                  onInput={(e) =>
-                    updateRename(index, { from: e.currentTarget.value })
-                  }
-                />
-                <s-text-field
-                  label="To"
-                  value={row.to || ""}
-                  onInput={(e) =>
-                    updateRename(index, { to: e.currentTarget.value })
-                  }
-                />
-                <s-button
-                  tone="critical"
-                  variant="tertiary"
-                  onClick={() =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      actions: {
-                        ...prev.actions,
-                        rename: (prev.actions.rename || []).filter(
-                          (_, i) => i !== index,
-                        ),
-                      },
-                    }))
-                  }
-                >
-                  Remove
-                </s-button>
-              </s-grid>
-            ))}
-            <s-button
-              onClick={() =>
-                setConfig((prev) => ({
-                  ...prev,
-                  actions: {
-                    ...prev.actions,
-                    rename: [...(prev.actions.rename || []), { from: "", to: "" }],
-                  },
-                }))
-              }
-            >
-              Add rename
-            </s-button>
-
-            <s-text-field
-              label="Sort order"
-              details="Comma-separated preferred order (first = top). Unlisted methods keep relative order."
-              value={sortText}
-              onInput={(e) =>
-                setConfig((prev) => ({
-                  ...prev,
-                  actions: {
-                    ...prev.actions,
-                    sort: parseCsv(e.currentTarget.value),
                   },
                 }))
               }

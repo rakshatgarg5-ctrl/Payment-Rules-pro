@@ -1,12 +1,12 @@
 # Payment Rules Pro
 
-Shopify app that lets merchants **hide**, **rename**, and **sort** checkout payment methods using conditional rules.
+Shopify app that lets merchants **hide** checkout payment methods using conditional rules.
 
 Built with Shopify Functions (`purchase.payment-customization.run`) and the React Router app template.
 
 ## Features (v1)
 
-- **Actions:** hide, rename, sort payment methods
+- **Actions:** hide payment methods
 - **Conditions (AND):** country, cart total, products, customer tags
 - Embedded admin UI to create and edit rules
 
@@ -25,6 +25,5 @@ Create rules from the app home, or via **Settings → Payments → Customization
 ## Notes
 
 - Payment methods are matched by name (partial, case-insensitive).
-- Wallet methods (Shop Pay, Apple Pay, Google Pay) cannot be renamed.
 - Customer tag conditions do not match guest checkouts.
 - US/CA non-Plus stores can only customize non-credit-card methods.
