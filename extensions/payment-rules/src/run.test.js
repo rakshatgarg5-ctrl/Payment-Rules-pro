@@ -10,13 +10,33 @@ const paymentMethods = [
 function baseInput(overrides = {}) {
   return {
     cart: {
-      cost: { totalAmount: { amount: "50.0" } },
+      cost: {
+        totalAmount: { amount: "50.0" },
+        subtotalAmount: { amount: "45.0" },
+      },
       buyerIdentity: { customer: null },
-      deliveryGroups: [{ deliveryAddress: { countryCode: "US" } }],
+      deliveryGroups: [
+        {
+          deliveryAddress: {
+            countryCode: "US",
+            provinceCode: "CA",
+            zip: "90210",
+            city: "Los Angeles",
+            address1: "123 Main St",
+          },
+        },
+      ],
       lines: [
         {
+          quantity: 2,
           merchandise: {
-            product: { id: "gid://shopify/Product/1" },
+            sku: "ABC-1",
+            weight: 500,
+            weightUnit: "GRAMS",
+            product: {
+              id: "gid://shopify/Product/1",
+              inCollections: [],
+            },
           },
         },
       ],
@@ -150,6 +170,57 @@ describe("payment rules run", () => {
       },
       actions: { hide: ["PayPal"] },
     });
+    expect(run(input).operations).toHaveLength(1);
+  });
+
+  it("matches always condition", () => {
+    const input = baseInput();
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: {
+        logic: "AND",
+        items: [{ type: "always" }],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(run(input).operations).toHaveLength(1);
+  });
+
+  it("matches cart quantity condition", () => {
+    const input = baseInput();
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: {
+        logic: "AND",
+        items: [{ type: "cart_quantity", operator: "gte", value: 3 }],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(run(input).operations).toEqual([]);
+
+    input.cart.lines[0].quantity = 3;
+    expect(run(input).operations).toHaveLength(1);
+  });
+
+  it("matches sku condition", () => {
+    const input = baseInput();
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: {
+        logic: "AND",
+        items: [
+          {
+            type: "sku",
+            operator: "includes_any",
+            values: ["XYZ"],
+          },
+        ],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(run(input).operations).toEqual([]);
+
+    input.cart.lines[0].merchandise.sku = "XYZ-9";
     expect(run(input).operations).toHaveLength(1);
   });
 

@@ -15,7 +15,10 @@ const VARIABLES_KEY = "input-variables";
 
 const EMPTY_CONFIG = {
   enabled: true,
-  conditions: { logic: "AND", items: [] },
+  conditions: {
+    logic: "AND",
+    items: [{ type: "always" }],
+  },
   actions: {
     hide: [],
   },
@@ -23,16 +26,35 @@ const EMPTY_CONFIG = {
 
 function defaultCondition(type) {
   switch (type) {
+    case "always":
+      return { type: "always" };
+    case "cart_total":
+    case "cart_subtotal":
+    case "cart_weight":
+    case "cart_quantity":
+      return { type, operator: "gte", value: 0 };
     case "country":
       return { type: "country", operator: "in", values: [] };
-    case "cart_total":
-      return { type: "cart_total", operator: "gte", value: 0 };
+    case "province":
+      return { type: "province", operator: "in", values: [] };
+    case "zip":
+    case "city":
+    case "address":
+      return { type, operator: "in", values: [] };
+    case "sku":
+      return { type: "sku", operator: "includes_any", values: [] };
+    case "collection":
+      return {
+        type: "collection",
+        operator: "includes_any",
+        collectionIds: [],
+      };
     case "product":
       return { type: "product", operator: "includes_any", productIds: [] };
     case "customer_tag":
       return { type: "customer_tag", operator: "includes_any", values: [] };
     default:
-      return { type: "cart_total", operator: "gte", value: 0 };
+      return { type: "always" };
   }
 }
 
@@ -49,11 +71,162 @@ function collectTags(config) {
   return tags;
 }
 
+function collectCollectionIds(config) {
+  const ids = [];
+  for (const item of config?.conditions?.items || []) {
+    if (item.type === "collection" && Array.isArray(item.collectionIds)) {
+      for (const id of item.collectionIds) {
+        const trimmed = String(id).trim();
+        if (trimmed && !ids.includes(trimmed)) ids.push(trimmed);
+      }
+    }
+  }
+  return ids;
+}
+
 function parseCsv(value) {
   return String(value || "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+function TypeOptions() {
+  return (
+    <>
+      <s-option-group label="Cart Details">
+        <s-option value="always">Always</s-option>
+        <s-option value="cart_total">Total Amount</s-option>
+        <s-option value="cart_subtotal">Subtotal Amount</s-option>
+        <s-option value="cart_weight">Total Weight</s-option>
+        <s-option value="cart_quantity">Total Quantity</s-option>
+      </s-option-group>
+      <s-option-group label="Address">
+        <s-option value="country">Country</s-option>
+        <s-option value="province">Province / State Code</s-option>
+        <s-option value="zip">Zip / Postal Code</s-option>
+        <s-option value="city">City / Area</s-option>
+        <s-option value="address">Address line</s-option>
+      </s-option-group>
+      <s-option-group label="Cart Item">
+        <s-option value="sku">SKU</s-option>
+        <s-option value="collection">Specific Collection</s-option>
+        <s-option value="product">Specific Product</s-option>
+      </s-option-group>
+      <s-option-group label="Customer">
+        <s-option value="customer_tag">Customer Tag</s-option>
+      </s-option-group>
+    </>
+  );
+}
+
+function NumericConditionFields({ item, index, updateCondition }) {
+  const label =
+    item.type === "cart_weight"
+      ? "Weight (grams)"
+      : item.type === "cart_quantity"
+        ? "Quantity"
+        : "Amount";
+
+  return (
+    <s-grid gap="base" gridTemplateColumns="1fr 1fr">
+      <s-select
+        label="Operator"
+        value={item.operator || "gte"}
+        onChange={(e) =>
+          updateCondition(index, { operator: e.currentTarget.value })
+        }
+      >
+        <s-option value="gte">Greater than or equal</s-option>
+        <s-option value="gt">Greater than</s-option>
+        <s-option value="lte">Less than or equal</s-option>
+        <s-option value="lt">Less than</s-option>
+        <s-option value="eq">Equal to</s-option>
+      </s-select>
+      <s-number-field
+        label={label}
+        value={String(item.value ?? 0)}
+        min="0"
+        step={item.type === "cart_quantity" ? "1" : "0.01"}
+        onInput={(e) =>
+          updateCondition(index, {
+            value: parseFloat(e.currentTarget.value) || 0,
+          })
+        }
+      />
+    </s-grid>
+  );
+}
+
+function ListConditionFields({
+  item,
+  index,
+  updateCondition,
+  label,
+  details,
+  uppercase = false,
+}) {
+  return (
+    <>
+      <s-select
+        label="Operator"
+        value={item.operator || "in"}
+        onChange={(e) =>
+          updateCondition(index, { operator: e.currentTarget.value })
+        }
+      >
+        <s-option value="in">Is one of</s-option>
+        <s-option value="not_in">Is not one of</s-option>
+      </s-select>
+      <s-text-field
+        label={label}
+        details={details}
+        value={(item.values || []).join(", ")}
+        onInput={(e) =>
+          updateCondition(index, {
+            values: parseCsv(e.currentTarget.value).map((value) =>
+              uppercase ? value.toUpperCase() : value,
+            ),
+          })
+        }
+      />
+    </>
+  );
+}
+
+function MembershipConditionFields({
+  item,
+  index,
+  updateCondition,
+  fieldKey,
+  label,
+  details,
+}) {
+  return (
+    <>
+      <s-select
+        label="Operator"
+        value={item.operator || "includes_any"}
+        onChange={(e) =>
+          updateCondition(index, { operator: e.currentTarget.value })
+        }
+      >
+        <s-option value="includes_any">Cart includes any</s-option>
+        <s-option value="includes_all">Cart includes all</s-option>
+        <s-option value="excludes_all">Cart includes none</s-option>
+      </s-select>
+      <s-text-field
+        label={label}
+        details={details}
+        value={(item[fieldKey] || item.values || []).join(", ")}
+        onInput={(e) =>
+          updateCondition(index, {
+            [fieldKey]: parseCsv(e.currentTarget.value),
+          })
+        }
+      />
+    </>
+  );
 }
 
 export const loader = async ({ params, request }) => {
@@ -91,16 +264,21 @@ export const loader = async ({ params, request }) => {
   let config = EMPTY_CONFIG;
   if (customization?.metafield?.value) {
     try {
+      const parsed = JSON.parse(customization.metafield.value);
       config = {
         ...EMPTY_CONFIG,
-        ...JSON.parse(customization.metafield.value),
+        ...parsed,
         conditions: {
           ...EMPTY_CONFIG.conditions,
-          ...(JSON.parse(customization.metafield.value).conditions || {}),
+          ...(parsed.conditions || {}),
+          items:
+            parsed.conditions?.items?.length > 0
+              ? parsed.conditions.items
+              : EMPTY_CONFIG.conditions.items,
         },
         actions: {
           ...EMPTY_CONFIG.actions,
-          ...(JSON.parse(customization.metafield.value).actions || {}),
+          ...(parsed.actions || {}),
         },
       };
     } catch {
@@ -140,6 +318,7 @@ export const action = async ({ params, request }) => {
   }
 
   const tagsList = collectTags(config);
+  const collectionIds = collectCollectionIds(config);
 
   const paymentCustomizationInput = {
     functionHandle,
@@ -156,7 +335,10 @@ export const action = async ({ params, request }) => {
         namespace: METAFIELD_NAMESPACE,
         key: VARIABLES_KEY,
         type: "json",
-        value: JSON.stringify({ tags_list: tagsList }),
+        value: JSON.stringify({
+          tags_list: tagsList,
+          collection_ids: collectionIds,
+        }),
       },
     ],
   };
@@ -271,12 +453,12 @@ export default function RuleEditor() {
     }));
   };
 
-  const addCondition = (type) => {
+  const addCondition = () => {
     setConfig((prev) => ({
       ...prev,
       conditions: {
         ...prev.conditions,
-        items: [...(prev.conditions.items || []), defaultCondition(type)],
+        items: [...(prev.conditions.items || []), defaultCondition("always")],
       },
     }));
   };
@@ -340,8 +522,8 @@ export default function RuleEditor() {
 
         <s-section heading="Conditions (AND)">
           <s-paragraph>
-            All conditions must match for actions to apply. Leave empty to
-            always apply.
+            Choose a type for each condition. All conditions must match for
+            actions to apply. Use Always to apply with no extra checks.
           </s-paragraph>
 
           <s-stack direction="block" gap="base">
@@ -356,8 +538,8 @@ export default function RuleEditor() {
                 <s-stack direction="block" gap="base">
                   <s-stack direction="inline" gap="base" alignItems="end">
                     <s-select
-                      label="Condition type"
-                      value={item.type}
+                      label="Type"
+                      value={item.type || "always"}
                       onChange={(e) => {
                         const nextType = e.currentTarget.value;
                         setConfig((prev) => {
@@ -370,10 +552,7 @@ export default function RuleEditor() {
                         });
                       }}
                     >
-                      <s-option value="country">Country</s-option>
-                      <s-option value="cart_total">Cart total</s-option>
-                      <s-option value="product">Products</s-option>
-                      <s-option value="customer_tag">Customer tags</s-option>
+                      <TypeOptions />
                     </s-select>
                     <s-button
                       tone="critical"
@@ -384,98 +563,106 @@ export default function RuleEditor() {
                     </s-button>
                   </s-stack>
 
-                  {item.type === "country" && (
-                    <>
-                      <s-select
-                        label="Operator"
-                        value={item.operator || "in"}
-                        onChange={(e) =>
-                          updateCondition(index, {
-                            operator: e.currentTarget.value,
-                          })
-                        }
-                      >
-                        <s-option value="in">Is one of</s-option>
-                        <s-option value="not_in">Is not one of</s-option>
-                      </s-select>
-                      <s-text-field
-                        label="Country codes (comma-separated)"
-                        details="Example: US, CA, GB"
-                        value={(item.values || []).join(", ")}
-                        onInput={(e) =>
-                          updateCondition(index, {
-                            values: parseCsv(e.currentTarget.value).map((c) =>
-                              c.toUpperCase(),
-                            ),
-                          })
-                        }
-                      />
-                    </>
+                  {item.type === "always" && (
+                    <s-paragraph>
+                      This condition always matches.
+                    </s-paragraph>
                   )}
 
-                  {item.type === "cart_total" && (
-                    <s-grid gap="base" gridTemplateColumns="1fr 1fr">
-                      <s-select
-                        label="Operator"
-                        value={item.operator || "gte"}
-                        onChange={(e) =>
-                          updateCondition(index, {
-                            operator: e.currentTarget.value,
-                          })
-                        }
-                      >
-                        <s-option value="gte">Greater than or equal</s-option>
-                        <s-option value="gt">Greater than</s-option>
-                        <s-option value="lte">Less than or equal</s-option>
-                        <s-option value="lt">Less than</s-option>
-                        <s-option value="eq">Equal to</s-option>
-                      </s-select>
-                      <s-number-field
-                        label="Amount"
-                        value={String(item.value ?? 0)}
-                        min="0"
-                        step="0.01"
-                        onInput={(e) =>
-                          updateCondition(index, {
-                            value: parseFloat(e.currentTarget.value) || 0,
-                          })
-                        }
-                      />
-                    </s-grid>
+                  {(item.type === "cart_total" ||
+                    item.type === "cart_subtotal" ||
+                    item.type === "cart_weight" ||
+                    item.type === "cart_quantity") && (
+                    <NumericConditionFields
+                      item={item}
+                      index={index}
+                      updateCondition={updateCondition}
+                    />
+                  )}
+
+                  {item.type === "country" && (
+                    <ListConditionFields
+                      item={item}
+                      index={index}
+                      updateCondition={updateCondition}
+                      label="Country codes (comma-separated)"
+                      details="Example: US, CA, GB"
+                      uppercase
+                    />
+                  )}
+
+                  {item.type === "province" && (
+                    <ListConditionFields
+                      item={item}
+                      index={index}
+                      updateCondition={updateCondition}
+                      label="Province / state codes (comma-separated)"
+                      details="Example: CA, NY, ON"
+                      uppercase
+                    />
+                  )}
+
+                  {item.type === "zip" && (
+                    <ListConditionFields
+                      item={item}
+                      index={index}
+                      updateCondition={updateCondition}
+                      label="Zip / postal codes (comma-separated)"
+                      details="Partial match supported. Example: 10001, M5V"
+                    />
+                  )}
+
+                  {item.type === "city" && (
+                    <ListConditionFields
+                      item={item}
+                      index={index}
+                      updateCondition={updateCondition}
+                      label="Cities / areas (comma-separated)"
+                      details="Partial match supported. Example: New York, Toronto"
+                    />
+                  )}
+
+                  {item.type === "address" && (
+                    <ListConditionFields
+                      item={item}
+                      index={index}
+                      updateCondition={updateCondition}
+                      label="Address line contains (comma-separated)"
+                      details="Partial match against address line 1"
+                    />
+                  )}
+
+                  {item.type === "sku" && (
+                    <MembershipConditionFields
+                      item={item}
+                      index={index}
+                      updateCondition={updateCondition}
+                      fieldKey="values"
+                      label="SKUs (comma-separated)"
+                      details="Partial match supported. Example: ABC-1, XYZ"
+                    />
+                  )}
+
+                  {item.type === "collection" && (
+                    <MembershipConditionFields
+                      item={item}
+                      index={index}
+                      updateCondition={updateCondition}
+                      fieldKey="collectionIds"
+                      label="Collection GIDs (comma-separated)"
+                      details="Example: gid://shopify/Collection/123"
+                    />
                   )}
 
                   {item.type === "product" && (
-                    <>
-                      <s-select
-                        label="Operator"
-                        value={item.operator || "includes_any"}
-                        onChange={(e) =>
-                          updateCondition(index, {
-                            operator: e.currentTarget.value,
-                          })
-                        }
-                      >
-                        <s-option value="includes_any">
-                          Cart includes any
-                        </s-option>
-                        <s-option value="includes_all">
-                          Cart includes all
-                        </s-option>
-                        <s-option value="excludes_all">
-                          Cart includes none
-                        </s-option>
-                      </s-select>
-                      <s-text-field
-                        label="Product GIDs (comma-separated)"
-                        details="Example: gid://shopify/Product/123"
-                        value={(item.productIds || []).join(", ")}
-                        onInput={(e) =>
-                          updateCondition(index, {
-                            productIds: parseCsv(e.currentTarget.value),
-                          })
-                        }
-                      />
-                    </>
+                    <MembershipConditionFields
+                      item={item}
+                      index={index}
+                      updateCondition={updateCondition}
+                      fieldKey="productIds"
+                      label="Product GIDs (comma-separated)"
+                      details="Example: gid://shopify/Product/123"
+                    />
                   )}
 
                   {item.type === "customer_tag" && (
@@ -495,20 +682,7 @@ export default function RuleEditor() {
             ))}
           </s-stack>
 
-          <s-stack direction="inline" gap="base">
-            <s-button onClick={() => addCondition("country")}>
-              Add country
-            </s-button>
-            <s-button onClick={() => addCondition("cart_total")}>
-              Add cart total
-            </s-button>
-            <s-button onClick={() => addCondition("product")}>
-              Add products
-            </s-button>
-            <s-button onClick={() => addCondition("customer_tag")}>
-              Add customer tags
-            </s-button>
-          </s-stack>
+          <s-button onClick={addCondition}>Add condition</s-button>
         </s-section>
 
         <s-section heading="Actions">

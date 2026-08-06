@@ -22,6 +22,96 @@ function nameMatches(methodName, needle) {
 }
 
 /**
+ * @param {number} actual
+ * @param {string|undefined} operator
+ * @param {number} expected
+ */
+function compareNumber(actual, operator, expected) {
+  switch (operator) {
+    case "gt":
+      return actual > expected;
+    case "lt":
+      return actual < expected;
+    case "lte":
+      return actual <= expected;
+    case "eq":
+      return actual === expected;
+    case "gte":
+    default:
+      return actual >= expected;
+  }
+}
+
+/**
+ * @param {string|undefined} weightUnit
+ * @param {number|null|undefined} weight
+ */
+function toGrams(weight, weightUnit) {
+  if (weight == null || Number.isNaN(weight)) return 0;
+  switch (weightUnit) {
+    case "KILOGRAMS":
+      return weight * 1000;
+    case "OUNCES":
+      return weight * 28.3495;
+    case "POUNDS":
+      return weight * 453.592;
+    case "GRAMS":
+    default:
+      return weight;
+  }
+}
+
+/**
+ * @param {RunInput} input
+ * @param {string} field
+ */
+function addressFieldValues(input, field) {
+  return (input.cart.deliveryGroups || [])
+    .map((group) => group.deliveryAddress?.[field])
+    .filter((value) => value != null && String(value).trim() !== "")
+    .map((value) => String(value));
+}
+
+/**
+ * @param {string[]} actualValues
+ * @param {string|undefined} operator
+ * @param {string[]} needles
+ * @param {{ normalize?: (value: string) => string, mode?: "exact" | "contains" }} [options]
+ */
+function matchStringValues(actualValues, operator, needles, options = {}) {
+  const normalize = options.normalize || ((value) => value.toLowerCase());
+  const mode = options.mode || "exact";
+  const values = (needles || []).map((value) => normalize(String(value))).filter(Boolean);
+  if (values.length === 0) return true;
+
+  const actuals = actualValues.map((value) => normalize(String(value)));
+  const hasMatch = values.some((needle) =>
+    actuals.some((actual) =>
+      mode === "contains" ? actual.includes(needle) : actual === needle,
+    ),
+  );
+
+  if (operator === "not_in") return !hasMatch;
+  return hasMatch;
+}
+
+/**
+ * @param {RunInput} input
+ */
+function cartLines(input) {
+  return input.cart.lines || [];
+}
+
+/**
+ * @param {RunInput['cart']['lines'][number]} line
+ */
+function variantMerchandise(line) {
+  const merchandise = line.merchandise;
+  if (!merchandise || !("product" in merchandise)) return null;
+  return merchandise;
+}
+
+/**
  * @param {RunInput} input
  * @param {object} condition
  */
@@ -29,43 +119,96 @@ function evaluateCondition(input, condition) {
   const type = condition?.type;
   const operator = condition?.operator;
 
+  if (type === "always") {
+    return true;
+  }
+
   if (type === "country") {
-    const countries = (input.cart.deliveryGroups || [])
-      .map((g) => g.deliveryAddress?.countryCode)
-      .filter(Boolean);
-    const values = (condition.values || []).map((v) => String(v).toUpperCase());
-    if (values.length === 0) return true;
-    const hasMatch = countries.some((c) => values.includes(String(c).toUpperCase()));
-    if (operator === "not_in") return !hasMatch;
-    return hasMatch; // in
+    return matchStringValues(
+      addressFieldValues(input, "countryCode"),
+      operator,
+      (condition.values || []).map((value) => String(value).toUpperCase()),
+      { normalize: (value) => value.toUpperCase() },
+    );
+  }
+
+  if (type === "province") {
+    return matchStringValues(
+      addressFieldValues(input, "provinceCode"),
+      operator,
+      condition.values || [],
+      { normalize: (value) => value.toUpperCase() },
+    );
+  }
+
+  if (type === "zip") {
+    return matchStringValues(
+      addressFieldValues(input, "zip"),
+      operator,
+      condition.values || [],
+      { mode: "contains" },
+    );
+  }
+
+  if (type === "city") {
+    return matchStringValues(
+      addressFieldValues(input, "city"),
+      operator,
+      condition.values || [],
+      { mode: "contains" },
+    );
+  }
+
+  if (type === "address") {
+    return matchStringValues(
+      addressFieldValues(input, "address1"),
+      operator,
+      condition.values || [],
+      { mode: "contains" },
+    );
   }
 
   if (type === "cart_total") {
     const cartTotal = parseFloat(input.cart.cost.totalAmount.amount);
     const value = parseFloat(condition.value);
     if (Number.isNaN(value)) return false;
-    switch (operator) {
-      case "gt":
-        return cartTotal > value;
-      case "lt":
-        return cartTotal < value;
-      case "lte":
-        return cartTotal <= value;
-      case "eq":
-        return cartTotal === value;
-      case "gte":
-      default:
-        return cartTotal >= value;
-    }
+    return compareNumber(cartTotal, operator, value);
+  }
+
+  if (type === "cart_subtotal") {
+    const subtotal = parseFloat(input.cart.cost.subtotalAmount.amount);
+    const value = parseFloat(condition.value);
+    if (Number.isNaN(value)) return false;
+    return compareNumber(subtotal, operator, value);
+  }
+
+  if (type === "cart_quantity") {
+    const quantity = cartLines(input).reduce(
+      (sum, line) => sum + (line.quantity || 0),
+      0,
+    );
+    const value = parseFloat(condition.value);
+    if (Number.isNaN(value)) return false;
+    return compareNumber(quantity, operator, value);
+  }
+
+  if (type === "cart_weight") {
+    const totalGrams = cartLines(input).reduce((sum, line) => {
+      const merchandise = variantMerchandise(line);
+      if (!merchandise) return sum;
+      return (
+        sum +
+        toGrams(merchandise.weight, merchandise.weightUnit) * (line.quantity || 0)
+      );
+    }, 0);
+    const value = parseFloat(condition.value);
+    if (Number.isNaN(value)) return false;
+    return compareNumber(totalGrams, operator, value);
   }
 
   if (type === "product") {
-    const cartProductIds = (input.cart.lines || [])
-      .map((line) =>
-        line.merchandise && "product" in line.merchandise
-          ? line.merchandise.product?.id
-          : null,
-      )
+    const cartProductIds = cartLines(input)
+      .map((line) => variantMerchandise(line)?.product?.id)
       .filter(Boolean);
     const productIds = condition.productIds || [];
     if (productIds.length === 0) return true;
@@ -77,30 +220,77 @@ function evaluateCondition(input, condition) {
     if (operator === "excludes_all") {
       return matched.length === 0;
     }
-    return matched.length > 0; // includes_any
+    return matched.length > 0;
+  }
+
+  if (type === "collection") {
+    const collectionIds = condition.collectionIds || [];
+    if (collectionIds.length === 0) return true;
+
+    const memberIds = new Set();
+    for (const line of cartLines(input)) {
+      const memberships = variantMerchandise(line)?.product?.inCollections || [];
+      for (const membership of memberships) {
+        if (membership.isMember) memberIds.add(membership.collectionId);
+      }
+    }
+
+    const matched = collectionIds.filter((id) => memberIds.has(id));
+    if (operator === "includes_all") {
+      return collectionIds.every((id) => memberIds.has(id));
+    }
+    if (operator === "excludes_all") {
+      return matched.length === 0;
+    }
+    return matched.length > 0;
+  }
+
+  if (type === "sku") {
+    const skus = cartLines(input)
+      .map((line) => variantMerchandise(line)?.sku)
+      .filter(Boolean)
+      .map((sku) => String(sku));
+    const values = condition.values || [];
+    if (values.length === 0) return true;
+
+    const matched = values.filter((value) =>
+      skus.some((sku) => sku.toLowerCase().includes(String(value).toLowerCase())),
+    );
+    if (operator === "includes_all") {
+      return values.every((value) =>
+        skus.some((sku) =>
+          sku.toLowerCase().includes(String(value).toLowerCase()),
+        ),
+      );
+    }
+    if (operator === "excludes_all") {
+      return matched.length === 0;
+    }
+    return matched.length > 0;
   }
 
   if (type === "customer_tag") {
     const customer = input.cart.buyerIdentity?.customer;
-    // Guests: fail closed when a customer_tag condition is present
     if (!customer) return false;
 
-    const values = (condition.values || []).map((v) => String(v).toLowerCase());
+    const values = (condition.values || []).map((value) =>
+      String(value).toLowerCase(),
+    );
     if (values.length === 0) return true;
 
     const tagResults = customer.hasTags || [];
     const matched = tagResults.filter(
-      (t) => t.hasTag && values.includes(String(t.tag).toLowerCase()),
+      (tag) => tag.hasTag && values.includes(String(tag.tag).toLowerCase()),
     );
 
     if (operator === "includes_all") {
-      return values.every((v) =>
+      return values.every((value) =>
         tagResults.some(
-          (t) => t.hasTag && String(t.tag).toLowerCase() === v,
+          (tag) => tag.hasTag && String(tag.tag).toLowerCase() === value,
         ),
       );
     }
-    return matched.length > 0; // includes_any
+    return matched.length > 0;
   }
 
   return false;
@@ -116,9 +306,9 @@ function conditionsMatch(input, configuration) {
 
   const logic = configuration?.conditions?.logic || "AND";
   if (logic === "OR") {
-    return items.some((c) => evaluateCondition(input, c));
+    return items.some((condition) => evaluateCondition(input, condition));
   }
-  return items.every((c) => evaluateCondition(input, c));
+  return items.every((condition) => evaluateCondition(input, condition));
 }
 
 /**
@@ -164,7 +354,6 @@ export function run(input) {
   const operations = [];
   const paymentMethods = input.paymentMethods || [];
 
-  // Hide
   for (const hideName of actions.hide || []) {
     const method = findMethod(paymentMethods, hideName);
     if (method) {

@@ -1,7 +1,10 @@
-query RunInput($tags_list: [String!]! = []) {
+query RunInput($tags_list: [String!]! = [], $collection_ids: [ID!]! = []) {
   cart {
     cost {
       totalAmount {
+        amount
+      }
+      subtotalAmount {
         amount
       }
     }
@@ -16,13 +19,25 @@ query RunInput($tags_list: [String!]! = []) {
     deliveryGroups {
       deliveryAddress {
         countryCode
+        provinceCode
+        zip
+        city
+        address1
       }
     }
     lines {
+      quantity
       merchandise {
         ... on ProductVariant {
+          sku
+          weight
+          weightUnit
           product {
             id
+            inCollections(ids: $collection_ids) {
+              collectionId
+              isMember
+            }
           }
         }
       }
