@@ -1,3 +1,5 @@
+import { countryName } from "./countries.js";
+
 const NUMERIC_OPERATOR_LABELS = {
   gte: "is at least",
   gt: "is greater than",
@@ -69,7 +71,16 @@ export function formatConditionSummary(item) {
     return `${label} ${operator} ${item.value ?? 0}${unit}`;
   }
 
-  if (type === "country" || type === "province" || type === "zip" || type === "city" || type === "address") {
+  if (type === "country") {
+    const operator = LIST_OPERATOR_LABELS[item.operator || "in"] || "is one of";
+    const values = joinList(
+      (item.values || []).map((code) => countryName(code)),
+    );
+    if (!values) return `${label} (${operator} — no values)`;
+    return `${label} ${operator} ${values}`;
+  }
+
+  if (type === "province" || type === "zip" || type === "city" || type === "address") {
     const operator = LIST_OPERATOR_LABELS[item.operator || "in"] || "is one of";
     const values = joinList(item.values || []);
     if (!values) return `${label} (${operator} — no values)`;

@@ -1,9 +1,5 @@
 import { useMemo, useState } from "react";
-
-/** Safely read the value from a Polaris web-component event (currentTarget can be null with Shadow DOM). */
-function readEventValue(event) {
-  return event?.currentTarget?.value ?? event?.target?.value ?? "";
-}
+import { readEventValue } from "../utils/events.js";
 
 /**
  * @param {{

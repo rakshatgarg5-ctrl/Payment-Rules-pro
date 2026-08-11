@@ -8,8 +8,10 @@ import {
 } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server.js";
+import { CountryConditionFields } from "../components/CountryConditionFields.jsx";
 import { PaymentMethodPicker } from "../components/PaymentMethodPicker.jsx";
 import { ResourcePickerField } from "../components/ResourcePickerField.jsx";
+import { readEventChecked, readEventValue } from "../utils/events.js";
 import {
   hydrateConfigSelections,
   loadPaymentMethodOptions,
@@ -105,22 +107,6 @@ function parseCsv(value) {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-}
-
-/**
- * Safely read the current value from an event fired by a Polaris web component
- * (e.g. <s-text-field>, <s-select>, <s-number-field>). These custom elements
- * use Shadow DOM, so React's synthetic `event.currentTarget` can be null in the
- * handler. Falling back to `event.target` avoids "Cannot read properties of
- * null (reading 'value')".
- */
-function readEventValue(event) {
-  return event?.currentTarget?.value ?? event?.target?.value ?? "";
-}
-
-/** Safely read `checked` from a Polaris <s-checkbox> event (see readEventValue). */
-function readEventChecked(event) {
-  return event?.currentTarget?.checked ?? event?.target?.checked ?? false;
 }
 
 function TypeOptions() {
@@ -715,13 +701,10 @@ export default function RuleEditor() {
                   )}
 
                   {item.type === "country" && (
-                    <ListConditionFields
+                    <CountryConditionFields
                       item={item}
                       index={index}
                       updateCondition={updateCondition}
-                      label="Country codes (comma-separated)"
-                      details="Example: US, CA, GB"
-                      uppercase
                     />
                   )}
 
