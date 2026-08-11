@@ -1,5 +1,10 @@
 import { useMemo, useState } from "react";
 
+/** Safely read the value from a Polaris web-component event (currentTarget can be null with Shadow DOM). */
+function readEventValue(event) {
+  return event?.currentTarget?.value ?? event?.target?.value ?? "";
+}
+
 /**
  * @param {{
  *   selected: string[],
@@ -92,7 +97,7 @@ export function PaymentMethodPicker({
           disabled={disabled}
           placeholder="Example: Cash on Delivery"
           autocomplete="off"
-          onInput={(e) => setCustomName(e.currentTarget.value)}
+          onInput={(e) => setCustomName(readEventValue(e))}
         />
         <s-button disabled={disabled || !customName.trim()} onClick={addCustom}>
           Add

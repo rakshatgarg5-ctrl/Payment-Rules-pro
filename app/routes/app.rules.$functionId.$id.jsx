@@ -107,6 +107,22 @@ function parseCsv(value) {
     .filter(Boolean);
 }
 
+/**
+ * Safely read the current value from an event fired by a Polaris web component
+ * (e.g. <s-text-field>, <s-select>, <s-number-field>). These custom elements
+ * use Shadow DOM, so React's synthetic `event.currentTarget` can be null in the
+ * handler. Falling back to `event.target` avoids "Cannot read properties of
+ * null (reading 'value')".
+ */
+function readEventValue(event) {
+  return event?.currentTarget?.value ?? event?.target?.value ?? "";
+}
+
+/** Safely read `checked` from a Polaris <s-checkbox> event (see readEventValue). */
+function readEventChecked(event) {
+  return event?.currentTarget?.checked ?? event?.target?.checked ?? false;
+}
+
 function TypeOptions() {
   return (
     <>
@@ -150,7 +166,7 @@ function NumericConditionFields({ item, index, updateCondition }) {
         label="Operator"
         value={item.operator || "gte"}
         onChange={(e) =>
-          updateCondition(index, { operator: e.currentTarget.value })
+          updateCondition(index, { operator: readEventValue(e) })
         }
       >
         <s-option value="gte">Greater than or equal</s-option>
@@ -166,7 +182,7 @@ function NumericConditionFields({ item, index, updateCondition }) {
         step={item.type === "cart_quantity" ? "1" : "0.01"}
         onInput={(e) =>
           updateCondition(index, {
-            value: parseFloat(e.currentTarget.value) || 0,
+            value: parseFloat(readEventValue(e)) || 0,
           })
         }
       />
@@ -188,7 +204,7 @@ function ListConditionFields({
         label="Operator"
         value={item.operator || "in"}
         onChange={(e) =>
-          updateCondition(index, { operator: e.currentTarget.value })
+          updateCondition(index, { operator: readEventValue(e) })
         }
       >
         <s-option value="in">Is one of</s-option>
@@ -200,7 +216,7 @@ function ListConditionFields({
         value={(item.values || []).join(", ")}
         onInput={(e) =>
           updateCondition(index, {
-            values: parseCsv(e.currentTarget.value).map((value) =>
+            values: parseCsv(readEventValue(e)).map((value) =>
               uppercase ? value.toUpperCase() : value,
             ),
           })
@@ -224,7 +240,7 @@ function MembershipConditionFields({
         label="Operator"
         value={item.operator || "includes_any"}
         onChange={(e) =>
-          updateCondition(index, { operator: e.currentTarget.value })
+          updateCondition(index, { operator: readEventValue(e) })
         }
       >
         <s-option value="includes_any">Cart includes any</s-option>
@@ -237,7 +253,7 @@ function MembershipConditionFields({
         value={(item[fieldKey] || item.values || []).join(", ")}
         onInput={(e) =>
           updateCondition(index, {
-            [fieldKey]: parseCsv(e.currentTarget.value),
+            [fieldKey]: parseCsv(readEventValue(e)),
           })
         }
       />
@@ -263,7 +279,7 @@ function ResourceConditionFields({
         label="Operator"
         value={item.operator || "includes_any"}
         onChange={(e) =>
-          updateCondition(index, { operator: e.currentTarget.value })
+          updateCondition(index, { operator: readEventValue(e) })
         }
       >
         <s-option value="includes_any">Cart includes any</s-option>
@@ -603,7 +619,7 @@ export default function RuleEditor() {
             <s-text-field
               label="Rule name"
               value={title}
-              onInput={(e) => setTitle(e.currentTarget.value)}
+              onInput={(e) => setTitle(readEventValue(e))}
               disabled={isLoading}
               required
               autocomplete="off"
@@ -611,7 +627,7 @@ export default function RuleEditor() {
             <s-checkbox
               label="Rule is active"
               checked={enabled}
-              onChange={(e) => setEnabled(e.currentTarget.checked)}
+              onChange={(e) => setEnabled(readEventChecked(e))}
               disabled={isLoading}
             />
           </s-stack>
@@ -628,7 +644,7 @@ export default function RuleEditor() {
                   ...prev,
                   conditions: {
                     ...prev.conditions,
-                    logic: e.currentTarget.value,
+                    logic: readEventValue(e),
                   },
                 }))
               }
@@ -659,7 +675,7 @@ export default function RuleEditor() {
                       label="Type"
                       value={item.type || "always"}
                       onChange={(e) => {
-                        const nextType = e.currentTarget.value;
+                        const nextType = readEventValue(e);
                         setConfig((prev) => {
                           const items = [...prev.conditions.items];
                           items[index] = defaultCondition(nextType);
@@ -788,7 +804,7 @@ export default function RuleEditor() {
                       value={(item.values || []).join(", ")}
                       onInput={(e) =>
                         updateCondition(index, {
-                          values: parseCsv(e.currentTarget.value),
+                          values: parseCsv(readEventValue(e)),
                         })
                       }
                     />
