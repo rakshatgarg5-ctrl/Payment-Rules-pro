@@ -3,8 +3,15 @@ import { useFetcher, useLoaderData } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server.js";
+import {
+  findRuleOverlaps,
+  formatRuleSummary,
+} from "../utils/rule-config.js";
+import { parseRuleConfigValue } from "../utils/payment-method-options.js";
 
 const FUNCTION_HANDLE = "payment-rules";
+const METAFIELD_NAMESPACE = "$app:payment-rules";
+const CONFIG_KEY = "function-configuration";
 
 export const loader = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
@@ -17,21 +24,34 @@ export const loader = async ({ request }) => {
             id
             title
             enabled
+            metafield(namespace: "${METAFIELD_NAMESPACE}", key: "${CONFIG_KEY}") {
+              value
+            }
           }
         }
       }`,
   );
   const customizationsJson = await customizationsResponse.json();
-  const rules = customizationsJson.data?.paymentCustomizations?.nodes || [];
+  const nodes = customizationsJson.data?.paymentCustomizations?.nodes || [];
 
-  return {
-    functionHandle: FUNCTION_HANDLE,
-    rules: rules.map((rule) => ({
+  const rules = nodes.map((rule) => {
+    const config = parseRuleConfigValue(rule.metafield?.value);
+    return {
       id: rule.id.replace("gid://shopify/PaymentCustomization/", ""),
       gid: rule.id,
       title: rule.title,
       enabled: rule.enabled,
-    })),
+      config,
+      summary: config ? formatRuleSummary(config) : "No configuration saved",
+    };
+  });
+
+  const overlaps = findRuleOverlaps(rules);
+
+  return {
+    functionHandle: FUNCTION_HANDLE,
+    rules,
+    overlaps,
   };
 };
 
@@ -105,7 +125,7 @@ export const action = async ({ request }) => {
 };
 
 export default function Index() {
-  const { functionHandle, rules } = useLoaderData();
+  const { functionHandle, rules, overlaps } = useLoaderData();
   const fetcher = useFetcher();
   const shopify = useAppBridge();
   const createPath = `/app/rules/${functionHandle}/new`;
@@ -156,6 +176,19 @@ export default function Index() {
           or customer tags. Rules run at checkout via Shopify Functions.
         </s-paragraph>
 
+        {overlaps.length > 0 && (
+          <s-banner tone="warning" heading="Possible rule overlap">
+            <ul>
+              {overlaps.map((overlap, index) => (
+                <li key={index}>
+                  &quot;{overlap.ruleA}&quot; and &quot;{overlap.ruleB}&quot; both
+                  hide {overlap.methods.join(", ")}.
+                </li>
+              ))}
+            </ul>
+          </s-banner>
+        )}
+
         {rules.length === 0 ? (
           <s-box padding="base" background="subdued" borderRadius="base">
             <s-paragraph>
@@ -167,6 +200,7 @@ export default function Index() {
           <s-table>
             <s-table-header-row>
               <s-table-header listSlot="primary">Title</s-table-header>
+              <s-table-header>Summary</s-table-header>
               <s-table-header>Status</s-table-header>
               <s-table-header>Actions</s-table-header>
             </s-table-header-row>
@@ -178,6 +212,7 @@ export default function Index() {
                       {rule.title}
                     </s-link>
                   </s-table-cell>
+                  <s-table-cell>{rule.summary}</s-table-cell>
                   <s-table-cell>
                     <s-stack direction="inline" gap="small">
                       <s-button
@@ -219,7 +254,8 @@ export default function Index() {
       <s-section slot="aside" heading="Tips">
         <s-unordered-list>
           <s-list-item>
-            Match payment methods by name (partial match is supported).
+            Choose payment methods from the list or add a custom name that
+            matches checkout.
           </s-list-item>
           <s-list-item>
             Customer tag conditions only apply when a customer is logged in.

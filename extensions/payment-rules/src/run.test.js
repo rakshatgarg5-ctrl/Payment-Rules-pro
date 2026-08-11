@@ -186,6 +186,25 @@ describe("payment rules run", () => {
     expect(run(input).operations).toHaveLength(1);
   });
 
+  it("matches OR logic when any condition matches", () => {
+    const input = baseInput();
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: {
+        logic: "OR",
+        items: [
+          { type: "country", operator: "in", values: ["CA"] },
+          { type: "cart_total", operator: "gte", value: 1000 },
+        ],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(run(input).operations).toEqual([]);
+
+    input.cart.deliveryGroups[0].deliveryAddress.countryCode = "CA";
+    expect(run(input).operations).toHaveLength(1);
+  });
+
   it("matches cart quantity condition", () => {
     const input = baseInput();
     input.paymentCustomization.metafield.value = JSON.stringify({

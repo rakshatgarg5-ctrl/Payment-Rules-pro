@@ -8,6 +8,16 @@ import {
 } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server.js";
+import { PaymentMethodPicker } from "../components/PaymentMethodPicker.jsx";
+import { ResourcePickerField } from "../components/ResourcePickerField.jsx";
+import {
+  hydrateConfigSelections,
+  loadPaymentMethodOptions,
+} from "../utils/hydrate-config.server.js";
+import {
+  formatRuleSummary,
+  validateRuleConfig,
+} from "../utils/rule-config.js";
 
 const METAFIELD_NAMESPACE = "$app:payment-rules";
 const CONFIG_KEY = "function-configuration";
@@ -48,9 +58,15 @@ function defaultCondition(type) {
         type: "collection",
         operator: "includes_any",
         collectionIds: [],
+        collectionSelections: [],
       };
     case "product":
-      return { type: "product", operator: "includes_any", productIds: [] };
+      return {
+        type: "product",
+        operator: "includes_any",
+        productIds: [],
+        productSelections: [],
+      };
     case "customer_tag":
       return { type: "customer_tag", operator: "includes_any", values: [] };
     default:
@@ -229,17 +245,59 @@ function MembershipConditionFields({
   );
 }
 
+function ResourceConditionFields({
+  item,
+  index,
+  updateCondition,
+  resourceType,
+  disabled,
+}) {
+  const isProduct = resourceType === "product";
+  const selectionsKey = isProduct ? "productSelections" : "collectionSelections";
+  const idsKey = isProduct ? "productIds" : "collectionIds";
+  const selections = item[selectionsKey] || [];
+
+  return (
+    <>
+      <s-select
+        label="Operator"
+        value={item.operator || "includes_any"}
+        onChange={(e) =>
+          updateCondition(index, { operator: e.currentTarget.value })
+        }
+      >
+        <s-option value="includes_any">Cart includes any</s-option>
+        <s-option value="includes_all">Cart includes all</s-option>
+        <s-option value="excludes_all">Cart includes none</s-option>
+      </s-select>
+      <ResourcePickerField
+        type={resourceType}
+        label={isProduct ? "Products" : "Collections"}
+        selections={selections}
+        disabled={disabled}
+        onChange={(nextSelections) =>
+          updateCondition(index, {
+            [selectionsKey]: nextSelections,
+            [idsKey]: nextSelections.map((selection) => selection.id),
+          })
+        }
+      />
+    </>
+  );
+}
+
 export const loader = async ({ params, request }) => {
   const { id } = params;
+  const { admin } = await authenticate.admin(request);
+  const paymentMethodOptions = await loadPaymentMethodOptions(admin);
 
   if (id === "new") {
     return {
       title: "",
       config: EMPTY_CONFIG,
+      paymentMethodOptions,
     };
   }
-
-  const { admin } = await authenticate.admin(request);
   const response = await admin.graphql(
     `#graphql
       query getPaymentCustomization($id: ID!) {
@@ -288,10 +346,11 @@ export const loader = async ({ params, request }) => {
 
   return {
     title: customization?.title || "",
-    config: {
+    config: await hydrateConfigSelections(admin, {
       ...config,
       enabled: customization?.enabled ?? config.enabled,
-    },
+    }),
+    paymentMethodOptions,
   };
 };
 
@@ -315,6 +374,11 @@ export const action = async ({ params, request }) => {
 
   if (!title) {
     return { errors: [{ message: "Rule name is required." }] };
+  }
+
+  const validation = validateRuleConfig(config);
+  if (validation.errors.length > 0) {
+    return { errors: validation.errors };
   }
 
   const tagsList = collectTags(config);
@@ -418,19 +482,19 @@ export default function RuleEditor() {
   const [title, setTitle] = useState(loaderData.title);
   const [enabled, setEnabled] = useState(loaderData.config.enabled !== false);
   const [config, setConfig] = useState(loaderData.config);
+  const [clientErrors, setClientErrors] = useState([]);
 
   const isLoading = navigation.state === "submitting";
+
+  const validation = useMemo(() => validateRuleConfig(config), [config]);
+  const ruleSummary = useMemo(() => formatRuleSummary(config), [config]);
+  const conditionLogic = config.conditions?.logic === "OR" ? "OR" : "AND";
 
   useEffect(() => {
     if (actionData?.redirectTo && actionData?.errors?.length === 0) {
       navigate(actionData.redirectTo);
     }
   }, [actionData, navigate]);
-
-  const hideText = useMemo(
-    () => (config.actions.hide || []).join(", "),
-    [config.actions.hide],
-  );
 
   const updateCondition = (index, patch) => {
     setConfig((prev) => {
@@ -465,6 +529,19 @@ export default function RuleEditor() {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+
+    if (!title.trim()) {
+      setClientErrors([{ message: "Rule name is required." }]);
+      return;
+    }
+
+    const nextValidation = validateRuleConfig(config);
+    if (nextValidation.errors.length > 0) {
+      setClientErrors(nextValidation.errors);
+      return;
+    }
+
+    setClientErrors([]);
     submit(
       {
         title,
@@ -479,14 +556,27 @@ export default function RuleEditor() {
     setTitle(loaderData.title);
     setEnabled(loaderData.config.enabled !== false);
     setConfig(loaderData.config);
+    setClientErrors([]);
   };
 
+  const displayErrors = clientErrors.length > 0 ? clientErrors : actionData?.errors || [];
   const errorBanner =
-    actionData?.errors?.length > 0 ? (
+    displayErrors.length > 0 ? (
       <s-banner tone="critical" heading="Could not save rule">
         <ul>
-          {actionData.errors.map((error, index) => (
+          {displayErrors.map((error, index) => (
             <li key={index}>{error.message}</li>
+          ))}
+        </ul>
+      </s-banner>
+    ) : null;
+
+  const warningBanner =
+    validation.warnings.length > 0 ? (
+      <s-banner tone="warning" heading="Review before saving">
+        <ul>
+          {validation.warnings.map((warning, index) => (
+            <li key={index}>{warning.message}</li>
           ))}
         </ul>
       </s-banner>
@@ -500,6 +590,13 @@ export default function RuleEditor() {
         </s-link>
 
         {errorBanner}
+        {warningBanner}
+
+        <s-section slot="aside" heading="Rule summary">
+          <s-box padding="base" background="subdued" borderRadius="base">
+            <s-paragraph>{ruleSummary}</s-paragraph>
+          </s-box>
+        </s-section>
 
         <s-section heading="Rule details">
           <s-stack direction="block" gap="base">
@@ -520,11 +617,32 @@ export default function RuleEditor() {
           </s-stack>
         </s-section>
 
-        <s-section heading="Conditions (AND)">
-          <s-paragraph>
-            Choose a type for each condition. All conditions must match for
-            actions to apply. Use Always to apply with no extra checks.
-          </s-paragraph>
+        <s-section heading="Conditions">
+          <s-stack direction="block" gap="base">
+            <s-select
+              label="Match when"
+              value={conditionLogic}
+              disabled={isLoading}
+              onChange={(e) =>
+                setConfig((prev) => ({
+                  ...prev,
+                  conditions: {
+                    ...prev.conditions,
+                    logic: e.currentTarget.value,
+                  },
+                }))
+              }
+            >
+              <s-option value="AND">All conditions match (AND)</s-option>
+              <s-option value="OR">Any condition matches (OR)</s-option>
+            </s-select>
+            <s-paragraph>
+              {conditionLogic === "OR"
+                ? "Actions apply when at least one condition below matches."
+                : "Actions apply only when every condition below matches."}{" "}
+              Use Always to apply with no extra checks.
+            </s-paragraph>
+          </s-stack>
 
           <s-stack direction="block" gap="base">
             {(config.conditions.items || []).map((item, index) => (
@@ -644,24 +762,22 @@ export default function RuleEditor() {
                   )}
 
                   {item.type === "collection" && (
-                    <MembershipConditionFields
+                    <ResourceConditionFields
                       item={item}
                       index={index}
                       updateCondition={updateCondition}
-                      fieldKey="collectionIds"
-                      label="Collection GIDs (comma-separated)"
-                      details="Example: gid://shopify/Collection/123"
+                      resourceType="collection"
+                      disabled={isLoading}
                     />
                   )}
 
                   {item.type === "product" && (
-                    <MembershipConditionFields
+                    <ResourceConditionFields
                       item={item}
                       index={index}
                       updateCondition={updateCondition}
-                      fieldKey="productIds"
-                      label="Product GIDs (comma-separated)"
-                      details="Example: gid://shopify/Product/123"
+                      resourceType="product"
+                      disabled={isLoading}
                     />
                   )}
 
@@ -686,22 +802,17 @@ export default function RuleEditor() {
         </s-section>
 
         <s-section heading="Actions">
-          <s-stack direction="block" gap="base">
-            <s-text-field
-              label="Hide payment methods"
-              details="Comma-separated names (partial match). Example: Cash on Delivery, Money Order"
-              value={hideText}
-              onInput={(e) =>
-                setConfig((prev) => ({
-                  ...prev,
-                  actions: {
-                    ...prev.actions,
-                    hide: parseCsv(e.currentTarget.value),
-                  },
-                }))
-              }
-            />
-          </s-stack>
+          <PaymentMethodPicker
+            selected={config.actions.hide || []}
+            options={loaderData.paymentMethodOptions || []}
+            disabled={isLoading}
+            onChange={(hide) =>
+              setConfig((prev) => ({
+                ...prev,
+                actions: { ...prev.actions, hide },
+              }))
+            }
+          />
         </s-section>
       </s-page>
     </form>
