@@ -1,5 +1,65 @@
-import { useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
+import { RemovableChip } from "./RemovableChip.jsx";
 import { readEventValue } from "../utils/events.js";
+
+const PANEL_MAX_HEIGHT = 280;
+const PANEL_GAP = 4;
+
+/**
+ * @param {HTMLElement | null} container
+ * @param {EventTarget | null} target
+ */
+function containerIncludesTarget(container, target) {
+  if (!container || !target) return false;
+  if (target instanceof Node && container.contains(target)) return true;
+
+  if (target instanceof Element) {
+    const root = target.getRootNode();
+    if (root instanceof ShadowRoot && root.host instanceof Node) {
+      return container.contains(root.host);
+    }
+  }
+
+  return false;
+}
+
+/**
+ * @param {string} name
+ */
+function normalizeKey(name) {
+  return name.trim().toLowerCase();
+}
+
+/**
+ * @param {string[]} selected
+ * @param {string} name
+ */
+function isSelected(selected, name) {
+  return selected.some((item) => normalizeKey(item) === normalizeKey(name));
+}
+
+/**
+ * @param {DOMRect} anchorRect
+ * @param {number} panelHeight
+ */
+function resolvePlacement(anchorRect, panelHeight) {
+  const spaceAbove = anchorRect.top;
+  const spaceBelow = window.innerHeight - anchorRect.bottom;
+  const needed = Math.min(panelHeight, PANEL_MAX_HEIGHT) + PANEL_GAP;
+
+  if (spaceAbove >= needed) return "top";
+  if (spaceBelow >= needed) return "bottom";
+  return spaceBelow >= spaceAbove ? "bottom" : "top";
+}
 
 /**
  * @param {{
@@ -15,90 +75,257 @@ export function PaymentMethodPicker({
   onChange,
   disabled = false,
 }) {
-  const [customName, setCustomName] = useState("");
+  const listboxId = useId();
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState(null);
+  const [placement, setPlacement] = useState("top");
 
-  const optionSet = useMemo(() => new Set(options), [options]);
-  const customSelected = selected.filter((name) => !optionSet.has(name));
+  const containerRef = useRef(null);
+  const anchorRef = useRef(null);
+  const panelRef = useRef(null);
+  const searchFieldRef = useRef(null);
+
+  const allOptions = useMemo(() => {
+    const names = new Set(options);
+    for (const name of selected) {
+      names.add(name);
+    }
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }, [options, selected]);
+
+  const trimmedQuery = query.trim();
+
+  const filtered = useMemo(() => {
+    const key = normalizeKey(trimmedQuery);
+    if (!key) return allOptions;
+    return allOptions.filter((name) => normalizeKey(name).includes(key));
+  }, [allOptions, trimmedQuery]);
+
+  const canAddCustom = useMemo(() => {
+    if (!trimmedQuery) return false;
+    const key = normalizeKey(trimmedQuery);
+    const exists = allOptions.some((name) => normalizeKey(name) === key);
+    return !exists && !isSelected(selected, trimmedQuery);
+  }, [allOptions, trimmedQuery, selected]);
 
   const toggle = (name) => {
-    const key = name.toLowerCase();
-    const isSelected = selected.some((item) => item.toLowerCase() === key);
-    if (isSelected) {
-      onChange(selected.filter((item) => item.toLowerCase() !== key));
+    if (isSelected(selected, name)) {
+      onChange(selected.filter((item) => item !== name));
       return;
     }
     onChange([...selected, name]);
   };
 
-  const addCustom = () => {
-    const trimmed = customName.trim();
-    if (!trimmed) return;
-    if (!selected.some((item) => item.toLowerCase() === trimmed.toLowerCase())) {
-      onChange([...selected, trimmed]);
-    }
-    setCustomName("");
+  const addCustom = (name) => {
+    const trimmed = name.trim();
+    if (!trimmed || isSelected(selected, trimmed)) return;
+    onChange([...selected, trimmed]);
+    setQuery("");
   };
 
-  const removeCustom = (name) => {
+  const remove = (name) => {
     onChange(selected.filter((item) => item !== name));
   };
+
+  const updatePanelPosition = useCallback(() => {
+    const anchor = anchorRef.current;
+    const panel = panelRef.current;
+    if (!anchor) return;
+
+    const rect = anchor.getBoundingClientRect();
+    const panelHeight = panel?.offsetHeight || PANEL_MAX_HEIGHT;
+    const nextPlacement = resolvePlacement(rect, panelHeight);
+
+    setPlacement(nextPlacement);
+    setPanelStyle({
+      position: "fixed",
+      left: rect.left,
+      width: rect.width,
+      zIndex: 1000,
+      ...(nextPlacement === "top"
+        ? { bottom: window.innerHeight - rect.top + PANEL_GAP }
+        : { top: rect.bottom + PANEL_GAP }),
+    });
+  }, []);
+
+  useEffect(() => {
+    const element = searchFieldRef.current;
+    if (!element || disabled) return undefined;
+
+    const openPicker = () => setOpen(true);
+    element.addEventListener("focus", openPicker);
+    element.addEventListener("click", openPicker);
+    return () => {
+      element.removeEventListener("focus", openPicker);
+      element.removeEventListener("click", openPicker);
+    };
+  }, [disabled]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPanelStyle(null);
+      return undefined;
+    }
+
+    updatePanelPosition();
+
+    const handleLayoutChange = () => updatePanelPosition();
+    window.addEventListener("resize", handleLayoutChange);
+    window.addEventListener("scroll", handleLayoutChange, true);
+    return () => {
+      window.removeEventListener("resize", handleLayoutChange);
+      window.removeEventListener("scroll", handleLayoutChange, true);
+    };
+  }, [open, filtered.length, canAddCustom, updatePanelPosition]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handlePointerDown = (event) => {
+      const target = event.target;
+      if (containerIncludesTarget(containerRef.current, target)) return;
+      if (containerIncludesTarget(panelRef.current, target)) return;
+      setOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key === "Escape") {
+      setOpen(false);
+      return;
+    }
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (canAddCustom) {
+      addCustom(trimmedQuery);
+      return;
+    }
+    const next = filtered.find((name) => !isSelected(selected, name));
+    if (next) toggle(next);
+  };
+
+  const panelContent = (
+    <s-box
+      padding="small"
+      borderWidth="base"
+      borderRadius="base"
+      borderColor="subdued"
+      background="base"
+    >
+      <s-stack direction="block" gap="small">
+        <s-text type="strong">Suggested payment methods</s-text>
+
+        <div
+          id={listboxId}
+          role="listbox"
+          aria-multiselectable="true"
+          style={{ maxHeight: PANEL_MAX_HEIGHT - 48, overflowY: "auto" }}
+        >
+          {canAddCustom && (
+            <s-clickable
+              disabled={disabled}
+              onClick={() => addCustom(trimmedQuery)}
+            >
+              <s-stack direction="inline" gap="small" alignItems="center">
+                <s-icon type="plus-circle" />
+                <s-text>Add &ldquo;{trimmedQuery}&rdquo;</s-text>
+              </s-stack>
+            </s-clickable>
+          )}
+
+          {filtered.length === 0 && !canAddCustom ? (
+            <s-paragraph>
+              No payment methods match &ldquo;{query}&rdquo;.
+            </s-paragraph>
+          ) : (
+            <s-stack direction="block" gap="none">
+              {filtered.map((name) => (
+                <s-checkbox
+                  key={name}
+                  label={name}
+                  checked={isSelected(selected, name)}
+                  disabled={disabled}
+                  onChange={() => toggle(name)}
+                />
+              ))}
+            </s-stack>
+          )}
+        </div>
+      </s-stack>
+    </s-box>
+  );
 
   return (
     <s-stack direction="block" gap="base">
       <s-paragraph>
-        Select payment methods to hide at checkout. Names must match how they
-        appear to customers. Matching is case-insensitive and partial.
+        Search payment methods to hide at checkout. Pick from the list or add a
+        custom name. Matching is case-insensitive and partial.
       </s-paragraph>
 
-      {options.length > 0 && (
-        <s-stack direction="block" gap="small">
-          <s-text type="strong">Known payment methods</s-text>
-          {options.map((name) => (
-            <s-checkbox
+      {selected.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+          {selected.map((name) => (
+            <RemovableChip
               key={name}
               label={name}
-              checked={selected.some(
-                (item) => item.toLowerCase() === name.toLowerCase(),
-              )}
-              disabled={disabled}
-              onChange={() => toggle(name)}
+              onRemove={() => remove(name)}
             />
           ))}
-        </s-stack>
+        </div>
       )}
 
-      {customSelected.length > 0 && (
-        <s-stack direction="block" gap="small">
-          <s-text type="strong">Custom selections</s-text>
-          {customSelected.map((name) => (
-            <s-stack key={name} direction="inline" gap="base" alignItems="center">
-              <s-text>{name}</s-text>
-              <s-button
-                tone="critical"
-                variant="tertiary"
-                disabled={disabled}
-                onClick={() => removeCustom(name)}
-              >
-                Remove
-              </s-button>
-            </s-stack>
-          ))}
-        </s-stack>
-      )}
+      <div ref={containerRef}>
+        <div ref={anchorRef}>
+          <s-box
+            padding="small"
+            borderWidth="base"
+            borderRadius="base"
+            borderColor="subdued"
+            background="base"
+          >
+            <s-search-field
+              ref={searchFieldRef}
+              label="Payment methods to hide"
+              labelAccessibilityVisibility="exclusive"
+              value={query}
+              disabled={disabled}
+              placeholder="Search or enter payment method to add"
+              autocomplete="off"
+              aria-expanded={open ? "true" : "false"}
+              aria-controls={open ? listboxId : undefined}
+              onInput={(e) => {
+                setQuery(readEventValue(e));
+                setOpen(true);
+              }}
+              onKeyDown={handleSearchKeyDown}
+            />
+          </s-box>
+        </div>
+      </div>
 
-      <s-stack direction="inline" gap="base" alignItems="end">
-        <s-text-field
-          label="Add custom payment method"
-          value={customName}
-          disabled={disabled}
-          placeholder="Example: Cash on Delivery"
-          autocomplete="off"
-          onInput={(e) => setCustomName(readEventValue(e))}
-        />
-        <s-button disabled={disabled || !customName.trim()} onClick={addCustom}>
-          Add
-        </s-button>
-      </s-stack>
+      {open &&
+        !disabled &&
+        panelStyle &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{
+              ...panelStyle,
+              borderRadius: "0.5rem",
+              overflow: "hidden",
+              boxShadow: "0 4px 16px rgba(0, 0, 0, 0.12)",
+            }}
+            data-placement={placement}
+          >
+            {panelContent}
+          </div>,
+          document.body,
+        )}
     </s-stack>
   );
 }

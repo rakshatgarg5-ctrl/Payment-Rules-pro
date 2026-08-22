@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { SaveBar } from "@shopify/app-bridge-react";
 import {
   useActionData,
   useLoaderData,
@@ -488,6 +489,23 @@ export default function RuleEditor() {
 
   const isLoading = navigation.state === "submitting";
 
+  const savedState = useMemo(
+    () => ({
+      title: loaderData.title,
+      enabled: loaderData.config.enabled !== false,
+      config: loaderData.config,
+    }),
+    [loaderData],
+  );
+
+  const isDirty = useMemo(
+    () =>
+      title !== savedState.title ||
+      enabled !== savedState.enabled ||
+      JSON.stringify(config) !== JSON.stringify(savedState.config),
+    [title, enabled, config, savedState],
+  );
+
   const validation = useMemo(() => validateRuleConfig(config), [config]);
   const ruleSummary = useMemo(() => formatRuleSummary(config), [config]);
   const conditionLogic = config.conditions?.logic === "OR" ? "OR" : "AND";
@@ -555,10 +573,15 @@ export default function RuleEditor() {
   };
 
   const handleReset = () => {
-    setTitle(loaderData.title);
-    setEnabled(loaderData.config.enabled !== false);
-    setConfig(loaderData.config);
+    setTitle(savedState.title);
+    setEnabled(savedState.enabled);
+    setConfig(savedState.config);
     setClientErrors([]);
+  };
+
+  const handleDiscard = (event) => {
+    event.preventDefault();
+    handleReset();
   };
 
   const displayErrors = clientErrors.length > 0 ? clientErrors : actionData?.errors || [];
@@ -585,8 +608,22 @@ export default function RuleEditor() {
     ) : null;
 
   return (
-    <form data-save-bar onSubmit={handleSubmit} onReset={handleReset}>
-      <s-page heading={title || "New payment rule"}>
+    <>
+      <SaveBar open={isDirty} discardConfirmation>
+        <button
+          variant="primary"
+          disabled={isLoading}
+          onClick={handleSubmit}
+        >
+          Save
+        </button>
+        <button type="button" disabled={isLoading} onClick={handleDiscard}>
+          Discard
+        </button>
+      </SaveBar>
+
+      <form onSubmit={handleSubmit} onReset={handleReset}>
+        <s-page heading={title || "New payment rule"}>
         <s-link href="/app" variant="breadcrumb" slot="breadcrumb-actions">
           Payment rules
         </s-link>
@@ -813,7 +850,8 @@ export default function RuleEditor() {
             }
           />
         </s-section>
-      </s-page>
-    </form>
+        </s-page>
+      </form>
+    </>
   );
 }
