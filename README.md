@@ -10,6 +10,22 @@ Built with Shopify Functions (`purchase.payment-customization.run`) and the Reac
 - **Conditions (AND):** country, cart total, products, customer tags
 - Embedded admin UI to create and edit rules
 
+## Database (Supabase)
+
+This app stores Shopify OAuth sessions in Supabase PostgreSQL via Prisma.
+
+1. In [Supabase](https://supabase.com/dashboard) → **Project Settings** → **Database**, copy:
+   - **Transaction pooler** URI → `DATABASE_URL` (port `6543`, add `?pgbouncer=true`)
+   - **Session pooler** or **Direct** URI → `DIRECT_URL` (port `5432`)
+2. Copy `.env.example` to `.env` and paste both URLs.
+3. Create tables:
+
+```bash
+npm run setup
+```
+
+This runs `prisma migrate deploy`, which creates the `Session` table required for app login/session storage.
+
 ## Setup
 
 ```bash
