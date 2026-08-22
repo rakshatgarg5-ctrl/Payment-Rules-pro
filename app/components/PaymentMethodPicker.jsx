@@ -266,18 +266,6 @@ export function PaymentMethodPicker({
         custom name. Matching is case-insensitive and partial.
       </s-paragraph>
 
-      {selected.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-          {selected.map((name) => (
-            <RemovableChip
-              key={name}
-              label={name}
-              onRemove={() => remove(name)}
-            />
-          ))}
-        </div>
-      )}
-
       <div ref={containerRef}>
         <div ref={anchorRef}>
           <s-box
@@ -306,6 +294,18 @@ export function PaymentMethodPicker({
           </s-box>
         </div>
       </div>
+
+      {selected.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+          {selected.map((name) => (
+            <RemovableChip
+              key={name}
+              label={name}
+              onRemove={() => remove(name)}
+            />
+          ))}
+        </div>
+      )}
 
       {open &&
         !disabled &&
