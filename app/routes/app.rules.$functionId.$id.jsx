@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { SaveBar } from "@shopify/app-bridge-react";
+import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
 import {
   useActionData,
   useLoaderData,
@@ -475,12 +475,15 @@ export const headers = (headersArgs) => {
   return boundary.headers(headersArgs);
 };
 
+const SAVE_BAR_ID = "payment-rule-editor-save-bar";
+
 export default function RuleEditor() {
   const submit = useSubmit();
   const actionData = useActionData();
   const navigation = useNavigation();
   const navigate = useNavigate();
   const loaderData = useLoaderData();
+  const shopify = useAppBridge();
 
   const [title, setTitle] = useState(loaderData.title);
   const [enabled, setEnabled] = useState(loaderData.config.enabled !== false);
@@ -510,11 +513,22 @@ export default function RuleEditor() {
   const ruleSummary = useMemo(() => formatRuleSummary(config), [config]);
   const conditionLogic = config.conditions?.logic === "OR" ? "OR" : "AND";
 
+  const saveSucceeded =
+    Boolean(actionData?.redirectTo) && (actionData?.errors?.length ?? 0) === 0;
+
+  const saveBarOpen = isDirty && !saveSucceeded;
+
   useEffect(() => {
-    if (actionData?.redirectTo && actionData?.errors?.length === 0) {
-      navigate(actionData.redirectTo);
-    }
-  }, [actionData, navigate]);
+    if (!saveSucceeded) return;
+    void shopify.saveBar.hide(SAVE_BAR_ID);
+    navigate(actionData.redirectTo, { replace: true });
+  }, [actionData?.redirectTo, navigate, saveSucceeded, shopify]);
+
+  useEffect(() => {
+    return () => {
+      void shopify.saveBar.hide(SAVE_BAR_ID);
+    };
+  }, [shopify]);
 
   const updateCondition = (index, patch) => {
     setConfig((prev) => {
@@ -609,7 +623,7 @@ export default function RuleEditor() {
 
   return (
     <>
-      <SaveBar open={isDirty} discardConfirmation>
+      <SaveBar id={SAVE_BAR_ID} open={saveBarOpen} discardConfirmation>
         <button
           variant="primary"
           disabled={isLoading}

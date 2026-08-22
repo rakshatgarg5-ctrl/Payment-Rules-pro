@@ -132,6 +132,10 @@ export default function Index() {
   const isSubmitting = fetcher.state !== "idle";
 
   useEffect(() => {
+    void shopify.saveBar.hide("payment-rule-editor-save-bar");
+  }, [shopify]);
+
+  useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data) return;
 
     if (fetcher.data.ok) {
