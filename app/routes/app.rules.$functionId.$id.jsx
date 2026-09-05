@@ -842,7 +842,7 @@ export default function RuleEditor() {
                       index={index}
                       updateCondition={updateCondition}
                       label="Province / state codes (comma-separated)"
-                      details="Example: CA, NY, ON"
+                      details="Example: CA, NY, ON (ISO 3166-2 Codes)"
                       uppercase
                     />
                   )}

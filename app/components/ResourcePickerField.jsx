@@ -1,4 +1,5 @@
 import { useAppBridge } from "@shopify/app-bridge-react";
+import { RemovableChip } from "./RemovableChip.jsx";
 
 /**
  * @param {{
@@ -17,8 +18,12 @@ export function ResourcePickerField({
   disabled = false,
 }) {
   const shopify = useAppBridge();
+  const isCollection = type === "collection";
+  const placeholder = isCollection ? "Select collection" : "Select product";
 
   const openPicker = async () => {
+    if (disabled) return;
+
     const result = await shopify.resourcePicker({
       type,
       multiple: true,
@@ -26,7 +31,7 @@ export function ResourcePickerField({
     });
 
     const selected = Array.isArray(result) ? result : result?.selection;
-    if (!selected?.length) return;
+    if (!selected) return;
 
     onChange(
       selected.map((item) => ({
@@ -42,31 +47,46 @@ export function ResourcePickerField({
 
   return (
     <s-stack direction="block" gap="base">
-      <s-stack direction="inline" gap="base" alignItems="center">
-        <s-text type="strong">{label}</s-text>
-        <s-button disabled={disabled} onClick={openPicker}>
-          Browse {type === "product" ? "products" : "collections"}
-        </s-button>
-      </s-stack>
+      <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled ? "true" : "false"}
+        aria-label={label}
+        onClick={openPicker}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            void openPicker();
+          }
+        }}
+        style={{
+          cursor: disabled ? "default" : "pointer",
+          opacity: disabled ? 0.6 : 1,
+        }}
+      >
+        <s-box
+          padding="small"
+          borderWidth="base"
+          borderRadius="base"
+          borderColor="subdued"
+          background="base"
+        >
+          <s-text color="subdued">{placeholder}</s-text>
+        </s-box>
+      </div>
 
-      {selections.length === 0 ? (
-        <s-paragraph>No {type === "product" ? "products" : "collections"} selected.</s-paragraph>
-      ) : (
-        <s-stack direction="block" gap="small">
+      {selections.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
           {selections.map((item) => (
-            <s-stack key={item.id} direction="inline" gap="base" alignItems="center">
-              <s-text>{item.title}</s-text>
-              <s-button
-                tone="critical"
-                variant="tertiary"
-                disabled={disabled}
-                onClick={() => removeSelection(item.id)}
-              >
-                Remove
-              </s-button>
-            </s-stack>
+            <RemovableChip
+              key={item.id}
+              label={item.title}
+              onRemove={() => {
+                if (!disabled) removeSelection(item.id);
+              }}
+            />
           ))}
-        </s-stack>
+        </div>
       )}
     </s-stack>
   );
