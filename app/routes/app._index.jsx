@@ -1,8 +1,14 @@
 import { useEffect } from "react";
-import { useFetcher, useLoaderData } from "react-router";
+import {
+  useFetcher,
+  useLoaderData,
+  useLocation,
+  useNavigate,
+} from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server.js";
+import { withSearch } from "../utils/app-path.js";
 import {
   findRuleOverlaps,
   formatRuleSummary,
@@ -127,9 +133,21 @@ export const action = async ({ request }) => {
 export default function Index() {
   const { functionHandle, rules, overlaps } = useLoaderData();
   const fetcher = useFetcher();
+  const location = useLocation();
+  const navigate = useNavigate();
   const shopify = useAppBridge();
-  const createPath = `/app/rules/${functionHandle}/new`;
+  const createPath = withSearch(
+    `/app/rules/${functionHandle}/new`,
+    location.search,
+  );
   const isSubmitting = fetcher.state !== "idle";
+  const rulePath = (id) =>
+    withSearch(`/app/rules/${functionHandle}/${id}`, location.search);
+
+  const goTo = (path) => (event) => {
+    event.preventDefault();
+    navigate(path);
+  };
 
   useEffect(() => {
     void shopify.saveBar.hide("payment-rule-editor-save-bar");
@@ -170,7 +188,12 @@ export default function Index() {
 
   return (
     <s-page heading="Payment rules">
-      <s-button slot="primary-action" variant="primary" href={createPath}>
+      <s-button
+        slot="primary-action"
+        variant="primary"
+        href={createPath}
+        onClick={goTo(createPath)}
+      >
         Create rule
       </s-button>
 
@@ -212,7 +235,7 @@ export default function Index() {
               {rules.map((rule) => (
                 <s-table-row key={rule.id}>
                   <s-table-cell>
-                    <s-link href={`/app/rules/${functionHandle}/${rule.id}`}>
+                    <s-link href={rulePath(rule.id)} onClick={goTo(rulePath(rule.id))}>
                       {rule.title}
                     </s-link>
                   </s-table-cell>
@@ -237,7 +260,10 @@ export default function Index() {
                   </s-table-cell>
                   <s-table-cell>
                     <s-stack direction="inline" gap="base">
-                      <s-link href={`/app/rules/${functionHandle}/${rule.id}`}>
+                      <s-link
+                        href={rulePath(rule.id)}
+                        onClick={goTo(rulePath(rule.id))}
+                      >
                         Update
                       </s-link>
                       <s-link

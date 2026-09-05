@@ -3,6 +3,7 @@ import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
 import {
   useActionData,
   useLoaderData,
+  useLocation,
   useNavigate,
   useNavigation,
   useSubmit,
@@ -12,6 +13,7 @@ import { authenticate } from "../shopify.server.js";
 import { CountryConditionFields } from "../components/CountryConditionFields.jsx";
 import { PaymentMethodPicker } from "../components/PaymentMethodPicker.jsx";
 import { ResourcePickerField } from "../components/ResourcePickerField.jsx";
+import { searchFromRequest, withSearch } from "../utils/app-path.js";
 import { readEventChecked, readEventValue } from "../utils/events.js";
 import {
   hydrateConfigSelections,
@@ -361,6 +363,7 @@ export const action = async ({ params, request }) => {
   const functionHandle = decodeURIComponent(params.functionId || "");
   const { id } = params;
   const { admin } = await authenticate.admin(request);
+  const homePath = withSearch("/app", searchFromRequest(request));
   const formData = await request.formData();
 
   const title = String(formData.get("title") || "").trim();
@@ -435,7 +438,7 @@ export const action = async ({ params, request }) => {
     if (errors.length === 0) {
       return {
         errors: [],
-        redirectTo: "/app",
+        redirectTo: homePath,
       };
     }
     return { errors };
@@ -466,7 +469,7 @@ export const action = async ({ params, request }) => {
     responseJson.data?.paymentCustomizationUpdate?.userErrors || [];
 
   if (errors.length === 0) {
-    return { errors: [], redirectTo: "/app" };
+    return { errors: [], redirectTo: homePath };
   }
   return { errors };
 };
@@ -482,8 +485,10 @@ export default function RuleEditor() {
   const actionData = useActionData();
   const navigation = useNavigation();
   const navigate = useNavigate();
+  const location = useLocation();
   const loaderData = useLoaderData();
   const shopify = useAppBridge();
+  const homeHref = withSearch("/app", location.search);
 
   const [title, setTitle] = useState(loaderData.title);
   const [enabled, setEnabled] = useState(loaderData.config.enabled !== false);
@@ -521,8 +526,17 @@ export default function RuleEditor() {
   useEffect(() => {
     if (!saveSucceeded) return;
     void shopify.saveBar.hide(SAVE_BAR_ID);
-    navigate(actionData.redirectTo, { replace: true });
-  }, [actionData?.redirectTo, navigate, saveSucceeded, shopify]);
+    const target = actionData.redirectTo.includes("?")
+      ? actionData.redirectTo
+      : withSearch(actionData.redirectTo, location.search);
+    navigate(target, { replace: true });
+  }, [
+    actionData?.redirectTo,
+    location.search,
+    navigate,
+    saveSucceeded,
+    shopify,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -638,7 +652,15 @@ export default function RuleEditor() {
 
       <form onSubmit={handleSubmit} onReset={handleReset}>
         <s-page heading={title || "New payment rule"}>
-        <s-link href="/app" variant="breadcrumb" slot="breadcrumb-actions">
+        <s-link
+          href={homeHref}
+          variant="breadcrumb"
+          slot="breadcrumb-actions"
+          onClick={(event) => {
+            event.preventDefault();
+            navigate(homeHref);
+          }}
+        >
           Payment rules
         </s-link>
 
