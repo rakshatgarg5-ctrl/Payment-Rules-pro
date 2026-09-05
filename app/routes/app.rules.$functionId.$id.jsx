@@ -35,6 +35,8 @@ const EMPTY_CONFIG = {
     items: [{ type: "always" }],
   },
   actions: {
+    matchMode: "contains",
+    mode: "hide",
     hide: [],
   },
 };
@@ -878,6 +880,20 @@ export default function RuleEditor() {
             selected={config.actions.hide || []}
             options={loaderData.paymentMethodOptions || []}
             disabled={isLoading}
+            matchMode={config.actions.matchMode || "contains"}
+            actionMode={config.actions.mode || "hide"}
+            onMatchModeChange={(matchMode) =>
+              setConfig((prev) => ({
+                ...prev,
+                actions: { ...prev.actions, matchMode },
+              }))
+            }
+            onActionModeChange={(mode) =>
+              setConfig((prev) => ({
+                ...prev,
+                actions: { ...prev.actions, mode },
+              }))
+            }
             onChange={(hide) =>
               setConfig((prev) => ({
                 ...prev,

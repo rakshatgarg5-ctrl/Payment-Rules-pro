@@ -137,7 +137,9 @@ export function formatConditionSummary(item) {
 export function formatRuleSummary(config) {
   const items = config?.conditions?.items || [];
   const logic = config?.conditions?.logic === "OR" ? "OR" : "AND";
-  const hide = (config?.actions?.hide || []).filter(Boolean);
+  const methods = (config?.actions?.hide || []).filter(Boolean);
+  const actionMode = config?.actions?.mode || "hide";
+  const matchMode = config?.actions?.matchMode === "exact" ? "exact" : "contains";
   const summaries = items.map(formatConditionSummary).filter(Boolean);
 
   let whenText;
@@ -150,10 +152,21 @@ export function formatRuleSummary(config) {
     whenText = `When ${summaries.join(joiner)}`;
   }
 
-  const thenText =
-    hide.length > 0
-      ? `Hide ${hide.join(", ")}`
-      : "Hide (no payment methods selected)";
+  const matchSuffix = matchMode === "exact" ? " (exact)" : "";
+  let thenText;
+  if (actionMode === "hide_all") {
+    thenText = "Hide all payment methods";
+  } else if (actionMode === "show") {
+    thenText =
+      methods.length > 0
+        ? `Show only ${methods.join(", ")}${matchSuffix}`
+        : "Show only (no payment methods selected)";
+  } else {
+    thenText =
+      methods.length > 0
+        ? `Hide ${methods.join(", ")}${matchSuffix}`
+        : "Hide (no payment methods selected)";
+  }
 
   return `${whenText} → ${thenText}`;
 }
@@ -268,29 +281,34 @@ export function validateRuleConfig(config) {
   /** @type {{ message: string }[]} */
   const warnings = [];
 
-  const hide = (config?.actions?.hide || [])
+  const actionMode = config?.actions?.mode || "hide";
+  const matchMode = config?.actions?.matchMode === "exact" ? "exact" : "contains";
+  const methods = (config?.actions?.hide || [])
     .map((name) => String(name).trim())
     .filter(Boolean);
 
-  if (hide.length === 0) {
+  if (actionMode !== "hide_all" && methods.length === 0) {
     errors.push({
-      message: "Add at least one payment method name to hide.",
+      message:
+        actionMode === "show"
+          ? "Add at least one payment method name to show."
+          : "Add at least one payment method name to hide.",
     });
   }
 
-  const hideSeen = new Set();
-  for (const name of hide) {
+  const methodSeen = new Set();
+  for (const name of methods) {
     const key = name.toLowerCase();
-    if (hideSeen.has(key)) {
+    if (methodSeen.has(key)) {
       warnings.push({
-        message: `"${name}" appears more than once in the hide list.`,
+        message: `"${name}" appears more than once in the payment method list.`,
       });
     }
-    hideSeen.add(key);
+    methodSeen.add(key);
 
-    if (name.length < 3) {
+    if (matchMode === "contains" && name.length <= 3) {
       warnings.push({
-        message: `"${name}" is very short — partial name matching may hide more methods than intended.`,
+        message: `"${name}" is very short — partial name matching may affect more methods than intended.`,
       });
     }
   }
@@ -318,7 +336,9 @@ export function validateRuleConfig(config) {
   });
 
   const onlyAlways =
-    items.length === 1 && items[0]?.type === "always" && hide.length > 0;
+    items.length === 1 &&
+    items[0]?.type === "always" &&
+    (actionMode === "hide_all" || methods.length > 0);
   if (onlyAlways) {
     warnings.push({
       message:
@@ -338,11 +358,22 @@ export function findRuleOverlaps(rules) {
 
   for (let i = 0; i < rules.length; i += 1) {
     for (let j = i + 1; j < rules.length; j += 1) {
-      const hideB = (rules[j].config?.actions?.hide || []).map((name) =>
+      const modeA = rules[i].config?.actions?.mode || "hide";
+      const modeB = rules[j].config?.actions?.mode || "hide";
+      if (modeA === "hide_all" || modeB === "hide_all") {
+        overlaps.push({
+          ruleA: rules[i].title,
+          ruleB: rules[j].title,
+          methods: ["all payment methods"],
+        });
+        continue;
+      }
+
+      const methodsB = (rules[j].config?.actions?.hide || []).map((name) =>
         String(name).toLowerCase(),
       );
       const shared = (rules[i].config?.actions?.hide || []).filter((name) =>
-        hideB.includes(String(name).toLowerCase()),
+        methodsB.includes(String(name).toLowerCase()),
       );
       if (shared.length > 0) {
         overlaps.push({

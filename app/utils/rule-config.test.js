@@ -17,7 +17,7 @@ describe("formatRuleSummary", () => {
       },
       actions: { hide: ["Cash on Delivery"] },
     });
-    expect(summary).toContain("Country is one of US");
+    expect(summary).toContain("Country is one of United States");
     expect(summary).toContain("Cart total is at least 100");
     expect(summary).toContain("Hide Cash on Delivery");
   });
@@ -90,6 +90,22 @@ describe("validateRuleConfig", () => {
     expect(result.warnings.some((w) => w.message.includes("very short"))).toBe(
       true,
     );
+  });
+
+  it("allows hide_all without selected payment methods", () => {
+    const result = validateRuleConfig({
+      conditions: { logic: "AND", items: [{ type: "always" }] },
+      actions: { mode: "hide_all", hide: [] },
+    });
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("requires payment methods for show mode", () => {
+    const result = validateRuleConfig({
+      conditions: { logic: "AND", items: [{ type: "always" }] },
+      actions: { mode: "show", hide: [] },
+    });
+    expect(result.errors.some((e) => e.message.includes("to show"))).toBe(true);
   });
 });
 

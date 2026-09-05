@@ -14,6 +14,13 @@ import { readEventValue } from "../utils/events.js";
 const PANEL_MAX_HEIGHT = 280;
 const PANEL_GAP = 4;
 
+export const MATCH_MODE_CONTAINS = "contains";
+export const MATCH_MODE_EXACT = "exact";
+
+export const ACTION_MODE_HIDE = "hide";
+export const ACTION_MODE_SHOW = "show";
+export const ACTION_MODE_HIDE_ALL = "hide_all";
+
 /**
  * @param {HTMLElement | null} container
  * @param {EventTarget | null} target
@@ -66,6 +73,10 @@ function resolvePlacement(anchorRect, panelHeight) {
  *   selected: string[],
  *   options: string[],
  *   onChange: (selected: string[]) => void,
+ *   matchMode?: string,
+ *   onMatchModeChange?: (mode: string) => void,
+ *   actionMode?: string,
+ *   onActionModeChange?: (mode: string) => void,
  *   disabled?: boolean,
  * }} props
  */
@@ -73,9 +84,14 @@ export function PaymentMethodPicker({
   selected,
   options,
   onChange,
+  matchMode = MATCH_MODE_CONTAINS,
+  onMatchModeChange,
+  actionMode = ACTION_MODE_HIDE,
+  onActionModeChange,
   disabled = false,
 }) {
   const listboxId = useId();
+  const matchGroupId = useId();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [panelStyle, setPanelStyle] = useState(null);
@@ -85,6 +101,8 @@ export function PaymentMethodPicker({
   const anchorRef = useRef(null);
   const panelRef = useRef(null);
   const searchFieldRef = useRef(null);
+
+  const hidePicker = actionMode === ACTION_MODE_HIDE_ALL;
 
   const allOptions = useMemo(() => {
     const names = new Set(options);
@@ -150,8 +168,12 @@ export function PaymentMethodPicker({
   }, []);
 
   useEffect(() => {
+    if (hidePicker) setOpen(false);
+  }, [hidePicker]);
+
+  useEffect(() => {
     const element = searchFieldRef.current;
-    if (!element || disabled) return undefined;
+    if (!element || disabled || hidePicker) return undefined;
 
     const openPicker = () => setOpen(true);
     element.addEventListener("focus", openPicker);
@@ -160,10 +182,10 @@ export function PaymentMethodPicker({
       element.removeEventListener("focus", openPicker);
       element.removeEventListener("click", openPicker);
     };
-  }, [disabled]);
+  }, [disabled, hidePicker]);
 
   useLayoutEffect(() => {
-    if (!open) {
+    if (!open || hidePicker) {
       setPanelStyle(null);
       return undefined;
     }
@@ -177,7 +199,7 @@ export function PaymentMethodPicker({
       window.removeEventListener("resize", handleLayoutChange);
       window.removeEventListener("scroll", handleLayoutChange, true);
     };
-  }, [open, filtered.length, canAddCustom, updatePanelPosition]);
+  }, [open, hidePicker, filtered.length, canAddCustom, updatePanelPosition]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -207,6 +229,18 @@ export function PaymentMethodPicker({
     const next = filtered.find((name) => !isSelected(selected, name));
     if (next) toggle(next);
   };
+
+  const helpText =
+    actionMode === ACTION_MODE_SHOW
+      ? "Search payment methods to keep visible at checkout. All other methods will be hidden."
+      : actionMode === ACTION_MODE_HIDE_ALL
+        ? "All payment methods will be hidden at checkout when this rule matches."
+        : "Search payment methods to hide at checkout. Pick from the list or add a custom name.";
+
+  const searchLabel =
+    actionMode === ACTION_MODE_SHOW
+      ? "Payment methods to show"
+      : "Payment methods to hide";
 
   const panelContent = (
     <s-box
@@ -261,54 +295,115 @@ export function PaymentMethodPicker({
 
   return (
     <s-stack direction="block" gap="base">
-      <s-paragraph>
-        Search payment methods to hide at checkout. Pick from the list or add a
-        custom name. Matching is case-insensitive and partial.
-      </s-paragraph>
-
-      <div ref={containerRef}>
-        <div ref={anchorRef}>
-          <s-box
-            padding="small"
-            borderWidth="base"
-            borderRadius="base"
-            borderColor="subdued"
-            background="base"
+      <s-stack direction="block" gap="small">
+        <s-text type="strong">Payment method</s-text>
+        <s-stack direction="inline" gap="large">
+          <label
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              cursor: disabled ? "default" : "pointer",
+            }}
           >
-            <s-search-field
-              ref={searchFieldRef}
-              label="Payment methods to hide"
-              labelAccessibilityVisibility="exclusive"
-              value={query}
+            <input
+              type="radio"
+              name={matchGroupId}
+              value={MATCH_MODE_CONTAINS}
+              checked={matchMode !== MATCH_MODE_EXACT}
               disabled={disabled}
-              placeholder="Search or enter payment method to add"
-              autocomplete="off"
-              aria-expanded={open ? "true" : "false"}
-              aria-controls={open ? listboxId : undefined}
-              onInput={(e) => {
-                setQuery(readEventValue(e));
-                setOpen(true);
-              }}
-              onKeyDown={handleSearchKeyDown}
+              onChange={() => onMatchModeChange?.(MATCH_MODE_CONTAINS)}
             />
-          </s-box>
-        </div>
-      </div>
+            <s-text>Contains</s-text>
+          </label>
+          <label
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              cursor: disabled ? "default" : "pointer",
+            }}
+          >
+            <input
+              type="radio"
+              name={matchGroupId}
+              value={MATCH_MODE_EXACT}
+              checked={matchMode === MATCH_MODE_EXACT}
+              disabled={disabled}
+              onChange={() => onMatchModeChange?.(MATCH_MODE_EXACT)}
+            />
+            <s-text>Exact</s-text>
+          </label>
+        </s-stack>
+      </s-stack>
 
-      {selected.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-          {selected.map((name) => (
-            <RemovableChip
-              key={name}
-              label={name}
-              onRemove={() => remove(name)}
-            />
-          ))}
-        </div>
+      <s-select
+        label="Action"
+        labelAccessibilityVisibility="exclusive"
+        value={
+          actionMode === ACTION_MODE_SHOW ||
+          actionMode === ACTION_MODE_HIDE_ALL
+            ? actionMode
+            : ACTION_MODE_HIDE
+        }
+        disabled={disabled}
+        onChange={(e) => onActionModeChange?.(readEventValue(e))}
+      >
+        <s-option value={ACTION_MODE_HIDE}>Hide these Payment methods</s-option>
+        <s-option value={ACTION_MODE_SHOW}>Show these Payment methods</s-option>
+        <s-option value={ACTION_MODE_HIDE_ALL}>Hide all Payment methods</s-option>
+      </s-select>
+
+      <s-paragraph>{helpText}</s-paragraph>
+
+      {!hidePicker && (
+        <>
+          <div ref={containerRef}>
+            <div ref={anchorRef}>
+              <s-box
+                padding="small"
+                borderWidth="base"
+                borderRadius="base"
+                borderColor="subdued"
+                background="base"
+              >
+                <s-search-field
+                  ref={searchFieldRef}
+                  label={searchLabel}
+                  labelAccessibilityVisibility="exclusive"
+                  value={query}
+                  disabled={disabled}
+                  placeholder="Search or enter payment method to add"
+                  autocomplete="off"
+                  aria-expanded={open ? "true" : "false"}
+                  aria-controls={open ? listboxId : undefined}
+                  onInput={(e) => {
+                    setQuery(readEventValue(e));
+                    setOpen(true);
+                  }}
+                  onKeyDown={handleSearchKeyDown}
+                />
+              </s-box>
+            </div>
+          </div>
+
+          {selected.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+              {selected.map((name) => (
+                <RemovableChip
+                  key={name}
+                  label={name}
+                  onRemove={() => remove(name)}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {open &&
         !disabled &&
+        !hidePicker &&
         panelStyle &&
         typeof document !== "undefined" &&
         createPortal(

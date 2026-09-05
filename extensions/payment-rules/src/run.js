@@ -15,10 +15,16 @@ const NO_CHANGES = {
 /**
  * @param {string} methodName
  * @param {string} needle
+ * @param {"contains" | "exact"} [matchMode]
  */
-function nameMatches(methodName, needle) {
+function nameMatches(methodName, needle, matchMode = "contains") {
   if (!needle) return false;
-  return methodName.toLowerCase().includes(String(needle).toLowerCase());
+  const actual = methodName.toLowerCase();
+  const expected = String(needle).toLowerCase();
+  if (matchMode === "exact") {
+    return actual === expected;
+  }
+  return actual.includes(expected);
 }
 
 /**
@@ -313,10 +319,39 @@ function conditionsMatch(input, configuration) {
 
 /**
  * @param {RunInput['paymentMethods']} paymentMethods
- * @param {string} needle
+ * @param {string[]} needles
+ * @param {"contains" | "exact"} matchMode
  */
-function findMethod(paymentMethods, needle) {
-  return paymentMethods.find((method) => nameMatches(method.name, needle));
+function methodsMatching(paymentMethods, needles, matchMode) {
+  const names = (needles || [])
+    .map((name) => String(name).trim())
+    .filter(Boolean);
+  if (names.length === 0) return [];
+
+  return paymentMethods.filter((method) =>
+    names.some((needle) => nameMatches(method.name, needle, matchMode)),
+  );
+}
+
+/**
+ * @param {RunInput['paymentMethods']} methodsToHide
+ */
+function hideOperations(methodsToHide) {
+  const seen = new Set();
+  /** @type {FunctionRunResult['operations']} */
+  const operations = [];
+
+  for (const method of methodsToHide) {
+    if (seen.has(method.id)) continue;
+    seen.add(method.id);
+    operations.push({
+      hide: {
+        paymentMethodId: method.id,
+      },
+    });
+  }
+
+  return operations;
 }
 
 /**
@@ -328,6 +363,8 @@ export function run(input) {
    *   enabled?: boolean
    *   conditions?: { logic?: string, items?: object[] }
    *   actions?: {
+   *     matchMode?: "contains" | "exact"
+   *     mode?: "hide" | "show" | "hide_all"
    *     hide?: string[]
    *   }
    * }}
@@ -350,20 +387,25 @@ export function run(input) {
   }
 
   const actions = configuration.actions || {};
-  /** @type {FunctionRunResult['operations']} */
-  const operations = [];
   const paymentMethods = input.paymentMethods || [];
+  const matchMode = actions.matchMode === "exact" ? "exact" : "contains";
+  const mode = actions.mode || "hide";
+  const selected = actions.hide || [];
 
-  for (const hideName of actions.hide || []) {
-    const method = findMethod(paymentMethods, hideName);
-    if (method) {
-      operations.push({
-        hide: {
-          paymentMethodId: method.id,
-        },
-      });
-    }
+  /** @type {RunInput['paymentMethods']} */
+  let toHide = [];
+  if (mode === "hide_all") {
+    toHide = paymentMethods;
+  } else if (mode === "show") {
+    const allowedIds = new Set(
+      methodsMatching(paymentMethods, selected, matchMode).map(
+        (method) => method.id,
+      ),
+    );
+    toHide = paymentMethods.filter((method) => !allowedIds.has(method.id));
+  } else {
+    toHide = methodsMatching(paymentMethods, selected, matchMode);
   }
 
-  return { operations };
+  return { operations: hideOperations(toHide) };
 }

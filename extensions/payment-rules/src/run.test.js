@@ -252,4 +252,58 @@ describe("payment rules run", () => {
     });
     expect(run(input).operations).toEqual([]);
   });
+
+  it("uses exact match mode when configured", () => {
+    const input = baseInput();
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: { logic: "AND", items: [] },
+      actions: {
+        matchMode: "exact",
+        mode: "hide",
+        hide: ["Cash"],
+      },
+    });
+    expect(run(input).operations).toEqual([]);
+
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: { logic: "AND", items: [] },
+      actions: {
+        matchMode: "exact",
+        mode: "hide",
+        hide: ["Cash on Delivery"],
+      },
+    });
+    expect(run(input).operations).toEqual([
+      { hide: { paymentMethodId: paymentMethods[0].id } },
+    ]);
+  });
+
+  it("hides all payment methods for hide_all mode", () => {
+    const input = baseInput();
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: { logic: "AND", items: [] },
+      actions: { mode: "hide_all", hide: [] },
+    });
+    expect(run(input).operations).toHaveLength(paymentMethods.length);
+  });
+
+  it("keeps selected methods for show mode", () => {
+    const input = baseInput();
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: { logic: "AND", items: [] },
+      actions: {
+        mode: "show",
+        matchMode: "exact",
+        hide: ["PayPal"],
+      },
+    });
+    expect(run(input).operations).toEqual([
+      { hide: { paymentMethodId: paymentMethods[0].id } },
+      { hide: { paymentMethodId: paymentMethods[2].id } },
+    ]);
+  });
 });
