@@ -24,6 +24,12 @@ query RunInput($tags_list: [String!]! = [], $collection_ids: [ID!]! = []) {
         city
         address1
       }
+      selectedDeliveryOption {
+        handle
+        title
+        code
+        deliveryMethodType
+      }
     }
     lines {
       quantity

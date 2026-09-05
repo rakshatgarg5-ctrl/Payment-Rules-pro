@@ -34,6 +34,17 @@ const CONDITION_TYPE_LABELS = {
   collection: "Collection",
   product: "Product",
   customer_tag: "Customer tag",
+  shipping_rate: "Selected shipping rate",
+  delivery_method: "Delivery method",
+};
+
+const DELIVERY_METHOD_LABELS = {
+  SHIPPING: "Shipping",
+  PICK_UP: "Local pickup",
+  PICKUP_POINT: "Pickup point",
+  LOCAL: "Local delivery",
+  RETAIL: "Retail",
+  NONE: "None",
 };
 
 const GID_PATTERN = /^gid:\/\/shopify\/(Product|Collection)\/\d+$/;
@@ -83,6 +94,24 @@ export function formatConditionSummary(item) {
   if (type === "province" || type === "zip" || type === "city" || type === "address") {
     const operator = LIST_OPERATOR_LABELS[item.operator || "in"] || "is one of";
     const values = joinList(item.values || []);
+    if (!values) return `${label} (${operator} — no values)`;
+    return `${label} ${operator} ${values}`;
+  }
+
+  if (type === "shipping_rate") {
+    const operator = LIST_OPERATOR_LABELS[item.operator || "in"] || "is one of";
+    const values = joinList(item.values || []);
+    if (!values) return `${label} (${operator} — no values)`;
+    return `${label} ${operator} ${values}`;
+  }
+
+  if (type === "delivery_method") {
+    const operator = LIST_OPERATOR_LABELS[item.operator || "in"] || "is one of";
+    const values = joinList(
+      (item.values || []).map(
+        (value) => DELIVERY_METHOD_LABELS[value] || value,
+      ),
+    );
     if (!values) return `${label} (${operator} — no values)`;
     return `${label} ${operator} ${values}`;
   }
@@ -200,6 +229,7 @@ function validateCondition(item, index, errors) {
     case "zip":
     case "city":
     case "address":
+    case "shipping_rate":
       if (!item.values?.length) {
         errors.push({
           message: `Condition ${n}: add at least one ${CONDITION_TYPE_LABELS[item.type].toLowerCase()} value.`,
@@ -216,6 +246,23 @@ function validateCondition(item, index, errors) {
         }
       }
       return;
+    case "delivery_method": {
+      if (!item.values?.length) {
+        errors.push({
+          message: `Condition ${n}: select at least one delivery method.`,
+        });
+        return;
+      }
+      const allowed = new Set(Object.keys(DELIVERY_METHOD_LABELS));
+      for (const value of item.values) {
+        if (!allowed.has(String(value))) {
+          errors.push({
+            message: `Condition ${n}: "${value}" is not a valid delivery method.`,
+          });
+        }
+      }
+      return;
+    }
     case "sku":
       if (!item.values?.length) {
         errors.push({ message: `Condition ${n}: add at least one SKU.` });

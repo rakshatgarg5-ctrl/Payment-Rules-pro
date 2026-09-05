@@ -19,6 +19,12 @@
       {
         "deliveryAddress": {
           "countryCode": "US"
+        },
+        "selectedDeliveryOption": {
+          "handle": "standard-shipping",
+          "title": "Standard Shipping",
+          "code": "STANDARD",
+          "deliveryMethodType": "SHIPPING"
         }
       }
     ],

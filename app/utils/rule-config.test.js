@@ -107,6 +107,32 @@ describe("validateRuleConfig", () => {
     });
     expect(result.errors.some((e) => e.message.includes("to show"))).toBe(true);
   });
+
+  it("requires shipping rate values", () => {
+    const result = validateRuleConfig({
+      conditions: {
+        logic: "AND",
+        items: [{ type: "shipping_rate", operator: "in", values: [] }],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(
+      result.errors.some((e) => e.message.includes("shipping rate")),
+    ).toBe(true);
+  });
+
+  it("requires a valid delivery method selection", () => {
+    const result = validateRuleConfig({
+      conditions: {
+        logic: "AND",
+        items: [{ type: "delivery_method", operator: "in", values: [] }],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(
+      result.errors.some((e) => e.message.includes("delivery method")),
+    ).toBe(true);
+  });
 });
 
 describe("findRuleOverlaps", () => {

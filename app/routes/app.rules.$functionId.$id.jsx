@@ -76,6 +76,10 @@ function defaultCondition(type) {
       };
     case "customer_tag":
       return { type: "customer_tag", operator: "includes_any", values: [] };
+    case "shipping_rate":
+      return { type: "shipping_rate", operator: "in", values: [] };
+    case "delivery_method":
+      return { type: "delivery_method", operator: "in", values: [] };
     default:
       return { type: "always" };
   }
@@ -139,6 +143,10 @@ function TypeOptions() {
       <s-option-group label="Customer">
         <s-option value="customer_tag">Customer Tag</s-option>
       </s-option-group>
+      <s-option-group label="Delivery">
+        <s-option value="shipping_rate">Selected Shipping Rate</s-option>
+        <s-option value="delivery_method">Delivery Method</s-option>
+      </s-option-group>
     </>
   );
 }
@@ -178,6 +186,50 @@ function NumericConditionFields({ item, index, updateCondition }) {
         }
       />
     </s-grid>
+  );
+}
+
+function DeliveryMethodConditionFields({ item, index, updateCondition }) {
+  const selected = new Set(item.values || []);
+
+  const toggle = (value, checked) => {
+    const next = new Set(selected);
+    if (checked) next.add(value);
+    else next.delete(value);
+    updateCondition(index, { values: [...next] });
+  };
+
+  return (
+    <>
+      <s-select
+        label="Operator"
+        value={item.operator || "in"}
+        onChange={(e) =>
+          updateCondition(index, { operator: readEventValue(e) })
+        }
+      >
+        <s-option value="in">Is one of</s-option>
+        <s-option value="not_in">Is not one of</s-option>
+      </s-select>
+      <s-stack direction="block" gap="small">
+        <s-text type="strong">Delivery methods</s-text>
+        {[
+          { value: "SHIPPING", label: "Shipping" },
+          { value: "PICK_UP", label: "Local pickup" },
+          { value: "PICKUP_POINT", label: "Pickup point" },
+          { value: "LOCAL", label: "Local delivery" },
+          { value: "RETAIL", label: "Retail" },
+          { value: "NONE", label: "None" },
+        ].map((option) => (
+          <s-checkbox
+            key={option.value}
+            label={option.label}
+            checked={selected.has(option.value)}
+            onChange={(e) => toggle(option.value, readEventChecked(e))}
+          />
+        ))}
+      </s-stack>
+    </>
   );
 }
 
@@ -865,6 +917,24 @@ export default function RuleEditor() {
                           values: parseCsv(readEventValue(e)),
                         })
                       }
+                    />
+                  )}
+
+                  {item.type === "shipping_rate" && (
+                    <ListConditionFields
+                      item={item}
+                      index={index}
+                      updateCondition={updateCondition}
+                      label="Shipping rate names (comma-separated)"
+                      details="Matches the selected checkout shipping rate title. Partial match supported. Example: Express, Standard"
+                    />
+                  )}
+
+                  {item.type === "delivery_method" && (
+                    <DeliveryMethodConditionFields
+                      item={item}
+                      index={index}
+                      updateCondition={updateCondition}
                     />
                   )}
                 </s-stack>

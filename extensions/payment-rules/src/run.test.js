@@ -24,6 +24,12 @@ function baseInput(overrides = {}) {
             city: "Los Angeles",
             address1: "123 Main St",
           },
+          selectedDeliveryOption: {
+            handle: "standard-shipping",
+            title: "Standard Shipping",
+            code: "STANDARD",
+            deliveryMethodType: "SHIPPING",
+          },
         },
       ],
       lines: [
@@ -305,5 +311,51 @@ describe("payment rules run", () => {
       { hide: { paymentMethodId: paymentMethods[0].id } },
       { hide: { paymentMethodId: paymentMethods[2].id } },
     ]);
+  });
+
+  it("matches selected shipping rate by title", () => {
+    const input = baseInput();
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: {
+        logic: "AND",
+        items: [
+          {
+            type: "shipping_rate",
+            operator: "in",
+            values: ["Express"],
+          },
+        ],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(run(input).operations).toEqual([]);
+
+    input.cart.deliveryGroups[0].selectedDeliveryOption.title =
+      "Express Shipping";
+    expect(run(input).operations).toHaveLength(1);
+  });
+
+  it("matches delivery method type", () => {
+    const input = baseInput();
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: {
+        logic: "AND",
+        items: [
+          {
+            type: "delivery_method",
+            operator: "in",
+            values: ["PICK_UP"],
+          },
+        ],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(run(input).operations).toEqual([]);
+
+    input.cart.deliveryGroups[0].selectedDeliveryOption.deliveryMethodType =
+      "PICK_UP";
+    expect(run(input).operations).toHaveLength(1);
   });
 });

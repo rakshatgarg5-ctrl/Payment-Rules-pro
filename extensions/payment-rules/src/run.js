@@ -79,6 +79,32 @@ function addressFieldValues(input, field) {
 }
 
 /**
+ * @param {RunInput} input
+ */
+function selectedShippingRateValues(input) {
+  /** @type {string[]} */
+  const values = [];
+  for (const group of input.cart.deliveryGroups || []) {
+    const option = group.selectedDeliveryOption;
+    if (!option) continue;
+    if (option.title) values.push(String(option.title));
+    if (option.handle) values.push(String(option.handle));
+    if (option.code) values.push(String(option.code));
+  }
+  return values;
+}
+
+/**
+ * @param {RunInput} input
+ */
+function selectedDeliveryMethodValues(input) {
+  return (input.cart.deliveryGroups || [])
+    .map((group) => group.selectedDeliveryOption?.deliveryMethodType)
+    .filter((value) => value != null && String(value).trim() !== "")
+    .map((value) => String(value));
+}
+
+/**
  * @param {string[]} actualValues
  * @param {string|undefined} operator
  * @param {string[]} needles
@@ -297,6 +323,24 @@ function evaluateCondition(input, condition) {
       );
     }
     return matched.length > 0;
+  }
+
+  if (type === "shipping_rate") {
+    return matchStringValues(
+      selectedShippingRateValues(input),
+      operator,
+      condition.values || [],
+      { mode: "contains" },
+    );
+  }
+
+  if (type === "delivery_method") {
+    return matchStringValues(
+      selectedDeliveryMethodValues(input),
+      operator,
+      (condition.values || []).map((value) => String(value).toUpperCase()),
+      { normalize: (value) => value.toUpperCase() },
+    );
   }
 
   return false;
