@@ -832,6 +832,7 @@ export default function RuleEditor() {
                       item={item}
                       index={index}
                       updateCondition={updateCondition}
+                      disabled={isLoading}
                     />
                   )}
 

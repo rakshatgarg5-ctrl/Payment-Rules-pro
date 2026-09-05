@@ -1,33 +1,55 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
+import { RemovableChip } from "./RemovableChip.jsx";
 import { COUNTRIES, countryName } from "../utils/countries.js";
 import { readEventValue } from "../utils/events.js";
 
+const PANEL_MAX_HEIGHT = 280;
+const PANEL_GAP = 4;
+
 /**
- * A Polaris <s-chip> with a remove ("x") action. The web component dispatches a
- * native "remove" CustomEvent, so we subscribe with a ref listener (React does
- * not attach handlers to custom event names).
+ * @param {HTMLElement | null} container
+ * @param {EventTarget | null} target
  */
-function RemovableChip({ code, onRemove }) {
-  const ref = useRef(null);
+function containerIncludesTarget(container, target) {
+  if (!container || !target) return false;
+  if (target instanceof Node && container.contains(target)) return true;
 
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) return undefined;
-    const handleRemove = () => onRemove(code);
-    element.addEventListener("remove", handleRemove);
-    return () => element.removeEventListener("remove", handleRemove);
-  }, [code, onRemove]);
+  if (target instanceof Element) {
+    const root = target.getRootNode();
+    if (root instanceof ShadowRoot && root.host instanceof Node) {
+      return container.contains(root.host);
+    }
+  }
 
-  return (
-    <s-chip ref={ref} removable>
-      {countryName(code) || code}
-    </s-chip>
-  );
+  return false;
 }
 
 /**
- * Searchable multi-select country picker.
- * Stores uppercase ISO 3166-1 alpha-2 codes, e.g. ["US", "CA"].
+ * @param {DOMRect} anchorRect
+ * @param {number} panelHeight
+ */
+function resolvePlacement(anchorRect, panelHeight) {
+  const spaceAbove = anchorRect.top;
+  const spaceBelow = window.innerHeight - anchorRect.bottom;
+  const needed = Math.min(panelHeight, PANEL_MAX_HEIGHT) + PANEL_GAP;
+
+  if (spaceAbove >= needed) return "top";
+  if (spaceBelow >= needed) return "bottom";
+  return spaceBelow >= spaceAbove ? "bottom" : "top";
+}
+
+/**
+ * Searchable multi-select country picker matching the payment method search UI.
+ * Stores uppercase ISO 3166-1 alpha-2 codes. Does not allow adding custom values.
  *
  * @param {{
  *   selected: string[],
@@ -36,112 +58,245 @@ function RemovableChip({ code, onRemove }) {
  * }} props
  */
 function CountryPicker({ selected, onChange, disabled = false }) {
-  const [open, setOpen] = useState(false);
+  const listboxId = useId();
   const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState(null);
+  const [placement, setPlacement] = useState("top");
+
+  const containerRef = useRef(null);
+  const anchorRef = useRef(null);
+  const panelRef = useRef(null);
+  const searchFieldRef = useRef(null);
+
+  const selectedSet = useMemo(
+    () => new Set(selected.map((code) => String(code).toUpperCase())),
+    [selected],
+  );
+
+  const trimmedQuery = query.trim();
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = trimmedQuery.toLowerCase();
     if (!q) return COUNTRIES;
     return COUNTRIES.filter(
       (country) =>
         country.name.toLowerCase().includes(q) ||
         country.code.toLowerCase().includes(q),
     );
-  }, [query]);
+  }, [trimmedQuery]);
 
   const toggle = (code) => {
-    const next = selected.includes(code)
-      ? selected.filter((item) => item !== code)
-      : [...selected, code];
-    onChange(next);
+    const upper = String(code).toUpperCase();
+    if (selectedSet.has(upper)) {
+      onChange(selected.filter((item) => String(item).toUpperCase() !== upper));
+      return;
+    }
+    onChange([...selected, upper]);
   };
 
+  const remove = (code) => {
+    const upper = String(code).toUpperCase();
+    onChange(selected.filter((item) => String(item).toUpperCase() !== upper));
+  };
+
+  const updatePanelPosition = useCallback(() => {
+    const anchor = anchorRef.current;
+    const panel = panelRef.current;
+    if (!anchor) return;
+
+    const rect = anchor.getBoundingClientRect();
+    const panelHeight = panel?.offsetHeight || PANEL_MAX_HEIGHT;
+    const nextPlacement = resolvePlacement(rect, panelHeight);
+
+    setPlacement(nextPlacement);
+    setPanelStyle({
+      position: "fixed",
+      left: rect.left,
+      width: rect.width,
+      zIndex: 1000,
+      ...(nextPlacement === "top"
+        ? { bottom: window.innerHeight - rect.top + PANEL_GAP }
+        : { top: rect.bottom + PANEL_GAP }),
+    });
+  }, []);
+
+  useEffect(() => {
+    const element = searchFieldRef.current;
+    if (!element || disabled) return undefined;
+
+    const openPicker = () => setOpen(true);
+    element.addEventListener("focus", openPicker);
+    element.addEventListener("click", openPicker);
+    return () => {
+      element.removeEventListener("focus", openPicker);
+      element.removeEventListener("click", openPicker);
+    };
+  }, [disabled]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPanelStyle(null);
+      return undefined;
+    }
+
+    updatePanelPosition();
+
+    const handleLayoutChange = () => updatePanelPosition();
+    window.addEventListener("resize", handleLayoutChange);
+    window.addEventListener("scroll", handleLayoutChange, true);
+    return () => {
+      window.removeEventListener("resize", handleLayoutChange);
+      window.removeEventListener("scroll", handleLayoutChange, true);
+    };
+  }, [open, filtered.length, updatePanelPosition]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handlePointerDown = (event) => {
+      const target = event.target;
+      if (containerIncludesTarget(containerRef.current, target)) return;
+      if (containerIncludesTarget(panelRef.current, target)) return;
+      setOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key === "Escape") {
+      setOpen(false);
+      return;
+    }
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    const next = filtered.find((country) => !selectedSet.has(country.code));
+    if (next) toggle(next.code);
+  };
+
+  const panelContent = (
+    <s-box
+      padding="small"
+      borderWidth="base"
+      borderRadius="base"
+      borderColor="subdued"
+      background="base"
+    >
+      <s-stack direction="block" gap="small">
+        <s-text type="strong">Suggested countries</s-text>
+
+        <div
+          id={listboxId}
+          role="listbox"
+          aria-multiselectable="true"
+          style={{ maxHeight: PANEL_MAX_HEIGHT - 48, overflowY: "auto" }}
+        >
+          {filtered.length === 0 ? (
+            <s-paragraph>
+              No countries match &ldquo;{query}&rdquo;.
+            </s-paragraph>
+          ) : (
+            <s-stack direction="block" gap="none">
+              {filtered.map((country) => (
+                <s-checkbox
+                  key={country.code}
+                  label={`${country.name} (${country.code})`}
+                  checked={selectedSet.has(country.code)}
+                  disabled={disabled}
+                  onChange={() => toggle(country.code)}
+                />
+              ))}
+            </s-stack>
+          )}
+        </div>
+      </s-stack>
+    </s-box>
+  );
+
   return (
-    <s-stack direction="block" gap="small">
-      <s-button
-        variant="secondary"
-        disabled={disabled}
-        onClick={() => setOpen((value) => !value)}
-      >
-        {selected.length === 0
-          ? "Select countries"
-          : `${selected.length} ${selected.length === 1 ? "country" : "countries"} selected`}
-      </s-button>
+    <s-stack direction="block" gap="base">
+      <div ref={containerRef}>
+        <div ref={anchorRef}>
+          <s-box
+            padding="small"
+            borderWidth="base"
+            borderRadius="base"
+            borderColor="subdued"
+            background="base"
+          >
+            <s-search-field
+              ref={searchFieldRef}
+              label="Countries"
+              labelAccessibilityVisibility="exclusive"
+              value={query}
+              disabled={disabled}
+              placeholder="Search countries by name or code"
+              autocomplete="off"
+              aria-expanded={open ? "true" : "false"}
+              aria-controls={open ? listboxId : undefined}
+              onInput={(e) => {
+                setQuery(readEventValue(e));
+                setOpen(true);
+              }}
+              onKeyDown={handleSearchKeyDown}
+            />
+          </s-box>
+        </div>
+      </div>
 
       {selected.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
           {selected.map((code) => (
-            <RemovableChip key={code} code={code} onRemove={toggle} />
+            <RemovableChip
+              key={code}
+              label={countryName(code) || code}
+              onRemove={() => remove(code)}
+            />
           ))}
         </div>
       )}
 
-      {open && (
-        <s-box
-          padding="base"
-          borderWidth="base"
-          borderRadius="base"
-          borderColor="subdued"
-          background="base"
-        >
-          <s-stack direction="block" gap="base">
-            <s-search-field
-              label="Search countries"
-              value={query}
-              placeholder="Search by name or code (e.g. France, FR)"
-              onInput={(e) => setQuery(readEventValue(e))}
-            />
-
-            <div style={{ maxHeight: 260, overflowY: "auto" }}>
-              {filtered.length === 0 ? (
-                <s-paragraph>No countries match “{query}”.</s-paragraph>
-              ) : (
-                <s-stack direction="block" gap="none">
-                  {filtered.map((country) => (
-                    <s-checkbox
-                      key={country.code}
-                      label={`${country.name} (${country.code})`}
-                      checked={selected.includes(country.code)}
-                      disabled={disabled}
-                      onChange={() => toggle(country.code)}
-                    />
-                  ))}
-                </s-stack>
-              )}
-            </div>
-
-            <s-stack direction="inline" gap="base" alignItems="center">
-              <s-button variant="primary" onClick={() => setOpen(false)}>
-                Done
-              </s-button>
-              {selected.length > 0 && (
-                <s-button
-                  variant="tertiary"
-                  tone="critical"
-                  onClick={() => onChange([])}
-                >
-                  Clear all
-                </s-button>
-              )}
-            </s-stack>
-          </s-stack>
-        </s-box>
-      )}
+      {open &&
+        !disabled &&
+        panelStyle &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{
+              ...panelStyle,
+              borderRadius: "0.5rem",
+              overflow: "hidden",
+              boxShadow: "0 4px 16px rgba(0, 0, 0, 0.12)",
+            }}
+            data-placement={placement}
+          >
+            {panelContent}
+          </div>,
+          document.body,
+        )}
     </s-stack>
   );
 }
 
 /**
- * "Country" condition fields: operator select plus the searchable multi-select
- * country picker.
+ * Country condition fields: operator select plus searchable multi-select picker.
  *
  * @param {{
  *   item: { operator?: string, values?: string[] },
  *   index: number,
  *   updateCondition: (index: number, patch: object) => void,
+ *   disabled?: boolean,
  * }} props
  */
-export function CountryConditionFields({ item, index, updateCondition }) {
+export function CountryConditionFields({
+  item,
+  index,
+  updateCondition,
+  disabled = false,
+}) {
   const selected = (item.values || []).map((value) =>
     String(value).toUpperCase(),
   );
@@ -151,6 +306,7 @@ export function CountryConditionFields({ item, index, updateCondition }) {
       <s-select
         label="Operator"
         value={item.operator || "in"}
+        disabled={disabled}
         onChange={(e) =>
           updateCondition(index, { operator: readEventValue(e) })
         }
@@ -161,6 +317,7 @@ export function CountryConditionFields({ item, index, updateCondition }) {
 
       <CountryPicker
         selected={selected}
+        disabled={disabled}
         onChange={(values) => updateCondition(index, { values })}
       />
     </>
