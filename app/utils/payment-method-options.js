@@ -1,17 +1,57 @@
 export const PAYMENT_METHOD_PRESETS = [
-  "Cash on Delivery",
-  "PayPal",
-  "Shop Pay",
-  "Apple Pay",
-  "Google Pay",
-  "Bank Deposit",
-  "Money Order",
-  "Manual Payment",
-  "Klarna",
+  "Affirm - Pay Over Time",
   "Afterpay",
-  "Affirm",
-  "Gift Card",
+  "Amazon Pay (express)",
+  "Apple Pay (express)",
+  "Authorize.net",
+  "Bancontact",
+  "Bank Deposit",
+  "Betalingskort",
+  "Billwerk+ Payments",
+  "Cash on Delivery (COD)",
+  "Deferred",
+  "Gift card",
+  "Google Pay (express)",
+  "iDEAL",
+  "Klarna",
+  "Klarna pay later",
+  "Klarna pay now",
+  "Mercado Pago",
+  "Money Order",
+  "Net Terms",
+  "PayPal",
+  "PayU Latam",
+  "Razorpay",
+  "Redeemable payment method - Store credit",
+  "Satispay",
+  "Shop Pay (express)",
+  "Shop Pay Installments",
+  "Shopify Payments (Credit card)",
+  "Sofort",
+  "Stripe (Credit card)",
+  "Venmo (express)",
+  "Vipps",
+  "(for testing) Bogus Gateway",
 ];
+
+/**
+ * Alphabetical order, with Bogus Gateway forced last for testing.
+ * @param {string} a
+ * @param {string} b
+ */
+export function comparePaymentMethodNames(a, b) {
+  const aLast = isBogusGateway(a);
+  const bLast = isBogusGateway(b);
+  if (aLast !== bLast) return aLast ? 1 : -1;
+  return a.localeCompare(b, undefined, { sensitivity: "base" });
+}
+
+/**
+ * @param {string} name
+ */
+function isBogusGateway(name) {
+  return /bogus\s*gateway/i.test(String(name));
+}
 
 /**
  * @param {string | null | undefined} rawValue
@@ -39,5 +79,5 @@ export function collectPaymentMethodNamesFromConfigs(configs) {
     }
   }
 
-  return [...names].sort((a, b) => a.localeCompare(b));
+  return [...names].sort(comparePaymentMethodNames);
 }

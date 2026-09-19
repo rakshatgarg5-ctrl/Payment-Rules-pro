@@ -10,6 +10,7 @@ import {
 import { createPortal } from "react-dom";
 import { RemovableChip } from "./RemovableChip.jsx";
 import { readEventValue } from "../utils/events.js";
+import { comparePaymentMethodNames } from "../utils/payment-method-options.js";
 
 const PANEL_MAX_HEIGHT = 280;
 const PANEL_GAP = 4;
@@ -109,7 +110,7 @@ export function PaymentMethodPicker({
     for (const name of selected) {
       names.add(name);
     }
-    return [...names].sort((a, b) => a.localeCompare(b));
+    return [...names].sort(comparePaymentMethodNames);
   }, [options, selected]);
 
   const trimmedQuery = query.trim();
