@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import {
+  Await,
   useFetcher,
   useLoaderData,
   useLocation,
@@ -7,7 +8,7 @@ import {
 } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { authenticate } from "../shopify.server.js";
+import { authenticateAdmin } from "../shopify.server.js";
 import { withSearch } from "../utils/app-path.js";
 import {
   findRuleOverlaps,
@@ -19,9 +20,10 @@ const FUNCTION_HANDLE = "payment-rules";
 const METAFIELD_NAMESPACE = "$app:payment-rules";
 const CONFIG_KEY = "function-configuration";
 
-export const loader = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
-
+/**
+ * @param {*} admin
+ */
+async function loadDashboardData(admin) {
   const customizationsResponse = await admin.graphql(
     `#graphql
       query getPaymentCustomizations {
@@ -52,17 +54,23 @@ export const loader = async ({ request }) => {
     };
   });
 
-  const overlaps = findRuleOverlaps(rules);
+  return {
+    rules,
+    overlaps: findRuleOverlaps(rules),
+  };
+}
+
+export const loader = async ({ request }) => {
+  const { admin } = await authenticateAdmin(request);
 
   return {
     functionHandle: FUNCTION_HANDLE,
-    rules,
-    overlaps,
+    dashboardData: loadDashboardData(admin),
   };
 };
 
 export const action = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticateAdmin(request);
   const formData = await request.formData();
   const intent = String(formData.get("intent") || "");
   const id = String(formData.get("id") || "");
@@ -130,8 +138,113 @@ export const action = async ({ request }) => {
   return { ok: false, errors: [{ message: "Unknown action." }] };
 };
 
+/**
+ * @param {{
+ *   rules: Array<{ id: string, title: string, enabled: boolean, summary: string }>,
+ *   overlaps: Array<{ ruleA: string, ruleB: string, methods: string[] }>,
+ *   isSubmitting: boolean,
+ *   setEnabled: Function,
+ *   deleteRule: Function,
+ *   rulePath: (id: string) => string,
+ *   goTo: (path: string) => (event: Event) => void,
+ * }} props
+ */
+function RulesList({
+  rules,
+  overlaps,
+  isSubmitting,
+  setEnabled,
+  deleteRule,
+  rulePath,
+  goTo,
+}) {
+  return (
+    <>
+      {overlaps.length > 0 && (
+        <s-banner tone="warning" heading="Possible rule overlap">
+          <ul>
+            {overlaps.map((overlap, index) => (
+              <li key={index}>
+                &quot;{overlap.ruleA}&quot; and &quot;{overlap.ruleB}&quot; both
+                hide {overlap.methods.join(", ")}.
+              </li>
+            ))}
+          </ul>
+        </s-banner>
+      )}
+
+      {rules.length === 0 ? (
+        <s-box padding="base" background="subdued" borderRadius="base">
+          <s-paragraph>
+            No payment rules yet. Create a rule to customize payment methods at
+            checkout.
+          </s-paragraph>
+        </s-box>
+      ) : (
+        <s-table>
+          <s-table-header-row>
+            <s-table-header listSlot="primary">Title</s-table-header>
+            <s-table-header>Summary</s-table-header>
+            <s-table-header>Status</s-table-header>
+            <s-table-header>Actions</s-table-header>
+          </s-table-header-row>
+          <s-table-body>
+            {rules.map((rule) => (
+              <s-table-row key={rule.id}>
+                <s-table-cell>
+                  <s-link
+                    href={rulePath(rule.id)}
+                    onClick={goTo(rulePath(rule.id))}
+                  >
+                    {rule.title}
+                  </s-link>
+                </s-table-cell>
+                <s-table-cell>{rule.summary}</s-table-cell>
+                <s-table-cell>
+                  <s-stack direction="inline" gap="small">
+                    <s-button
+                      variant={rule.enabled ? "primary" : "secondary"}
+                      disabled={isSubmitting}
+                      onClick={() => setEnabled(rule, true)}
+                    >
+                      Active
+                    </s-button>
+                    <s-button
+                      variant={!rule.enabled ? "primary" : "secondary"}
+                      disabled={isSubmitting}
+                      onClick={() => setEnabled(rule, false)}
+                    >
+                      Inactive
+                    </s-button>
+                  </s-stack>
+                </s-table-cell>
+                <s-table-cell>
+                  <s-stack direction="inline" gap="base">
+                    <s-link
+                      href={rulePath(rule.id)}
+                      onClick={goTo(rulePath(rule.id))}
+                    >
+                      Update
+                    </s-link>
+                    <s-link
+                      tone="critical"
+                      onClick={() => deleteRule(rule)}
+                    >
+                      Delete
+                    </s-link>
+                  </s-stack>
+                </s-table-cell>
+              </s-table-row>
+            ))}
+          </s-table-body>
+        </s-table>
+      )}
+    </>
+  );
+}
+
 export default function Index() {
-  const { functionHandle, rules, overlaps } = useLoaderData();
+  const { functionHandle, dashboardData } = useLoaderData();
   const fetcher = useFetcher();
   const location = useLocation();
   const navigate = useNavigate();
@@ -203,82 +316,21 @@ export default function Index() {
           or customer tags. Rules run at checkout via Shopify Functions.
         </s-paragraph>
 
-        {overlaps.length > 0 && (
-          <s-banner tone="warning" heading="Possible rule overlap">
-            <ul>
-              {overlaps.map((overlap, index) => (
-                <li key={index}>
-                  &quot;{overlap.ruleA}&quot; and &quot;{overlap.ruleB}&quot; both
-                  hide {overlap.methods.join(", ")}.
-                </li>
-              ))}
-            </ul>
-          </s-banner>
-        )}
-
-        {rules.length === 0 ? (
-          <s-box padding="base" background="subdued" borderRadius="base">
-            <s-paragraph>
-              No payment rules yet. Create a rule to customize payment methods
-              at checkout.
-            </s-paragraph>
-          </s-box>
-        ) : (
-          <s-table>
-            <s-table-header-row>
-              <s-table-header listSlot="primary">Title</s-table-header>
-              <s-table-header>Summary</s-table-header>
-              <s-table-header>Status</s-table-header>
-              <s-table-header>Actions</s-table-header>
-            </s-table-header-row>
-            <s-table-body>
-              {rules.map((rule) => (
-                <s-table-row key={rule.id}>
-                  <s-table-cell>
-                    <s-link href={rulePath(rule.id)} onClick={goTo(rulePath(rule.id))}>
-                      {rule.title}
-                    </s-link>
-                  </s-table-cell>
-                  <s-table-cell>{rule.summary}</s-table-cell>
-                  <s-table-cell>
-                    <s-stack direction="inline" gap="small">
-                      <s-button
-                        variant={rule.enabled ? "primary" : "secondary"}
-                        disabled={isSubmitting}
-                        onClick={() => setEnabled(rule, true)}
-                      >
-                        Active
-                      </s-button>
-                      <s-button
-                        variant={!rule.enabled ? "primary" : "secondary"}
-                        disabled={isSubmitting}
-                        onClick={() => setEnabled(rule, false)}
-                      >
-                        Inactive
-                      </s-button>
-                    </s-stack>
-                  </s-table-cell>
-                  <s-table-cell>
-                    <s-stack direction="inline" gap="base">
-                      <s-link
-                        href={rulePath(rule.id)}
-                        onClick={goTo(rulePath(rule.id))}
-                      >
-                        Update
-                      </s-link>
-                      <s-link
-                        tone="critical"
-                        onClick={() => deleteRule(rule)}
-                      >
-                        Delete
-                      </s-link>
-                    </s-stack>
-                  </s-table-cell>
-                </s-table-row>
-              ))}
-            </s-table-body>
-          </s-table>
-        )}
+        <Suspense fallback={<s-spinner accessibilityLabel="Loading rules" />}>
+          <Await resolve={dashboardData}>
+            {(data) => (
+              <RulesList
+                rules={data.rules}
+                overlaps={data.overlaps}
+                isSubmitting={isSubmitting}
+                setEnabled={setEnabled}
+                deleteRule={deleteRule}
+                rulePath={rulePath}
+                goTo={goTo}
+              />
+            )}
+          </Await>
+        </Suspense>
       </s-section>
 
       <s-section slot="aside" heading="Tips">

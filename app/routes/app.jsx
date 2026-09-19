@@ -7,11 +7,11 @@ import {
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
-import { authenticate } from "../shopify.server.js";
+import { authenticateAdmin } from "../shopify.server.js";
 import { withSearch } from "../utils/app-path.js";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
+  await authenticateAdmin(request);
 
   return { apiKey: process.env.SHOPIFY_API_KEY || "" };
 };

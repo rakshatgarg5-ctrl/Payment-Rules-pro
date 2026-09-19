@@ -32,4 +32,19 @@ export const authenticate = shopify.authenticate;
 export const unauthenticated = shopify.unauthenticated;
 export const login = shopify.login;
 export const registerWebhooks = shopify.registerWebhooks;
-export const sessionStorage = shopify.sessionStorage; 
+export const sessionStorage = shopify.sessionStorage;
+
+/** One authenticate.admin call per request (parent + child loaders share it). */
+const adminAuthByRequest = new WeakMap();
+
+/**
+ * @param {Request} request
+ */
+export function authenticateAdmin(request) {
+  let pending = adminAuthByRequest.get(request);
+  if (!pending) {
+    pending = authenticate.admin(request);
+    adminAuthByRequest.set(request, pending);
+  }
+  return pending;
+} 
