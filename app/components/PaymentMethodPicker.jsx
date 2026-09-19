@@ -355,7 +355,16 @@ export function PaymentMethodPicker({
         <s-option value={ACTION_MODE_HIDE_ALL}>Hide all Payment methods</s-option>
       </s-select>
 
-      <s-paragraph>{helpText}</s-paragraph>
+      <s-stack direction="block" gap="small">
+        <s-paragraph>{helpText}</s-paragraph>
+        <s-stack direction="inline" gap="small" alignItems="center">
+          <s-icon type="info" color="subdued" />
+          <s-text color="subdued">
+            Credit card (Shopify Payments) can only be customized on Shopify
+            Plus plans.
+          </s-text>
+        </s-stack>
+      </s-stack>
 
       {!hidePicker && (
         <>
