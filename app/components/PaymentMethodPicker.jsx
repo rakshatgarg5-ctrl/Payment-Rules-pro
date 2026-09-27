@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { RemovableChip } from "./RemovableChip.jsx";
+import { PaymentMethodRenameEditor } from "./PaymentMethodRenameEditor.jsx";
 import { PaymentMethodSortEditor } from "./PaymentMethodSortEditor.jsx";
 import { readEventValue } from "../utils/events.js";
 import { comparePaymentMethodNames } from "../utils/payment-method-options.js";
@@ -23,6 +24,7 @@ export const ACTION_MODE_HIDE = "hide";
 export const ACTION_MODE_SHOW = "show";
 export const ACTION_MODE_HIDE_ALL = "hide_all";
 export const ACTION_MODE_SORT = "sort";
+export const ACTION_MODE_RENAME = "rename";
 
 /**
  * @param {HTMLElement | null} container
@@ -78,6 +80,8 @@ function resolvePlacement(anchorRect, panelHeight) {
  *   onChange: (selected: string[]) => void,
  *   order?: { name?: string, position?: string | number }[],
  *   onOrderChange?: (order: { name: string, position: string | number }[]) => void,
+ *   renames?: { name?: string, operation?: string, newName?: string }[],
+ *   onRenamesChange?: (renames: { name: string, operation: string, newName: string }[]) => void,
  *   matchMode?: string,
  *   onMatchModeChange?: (mode: string) => void,
  *   actionMode?: string,
@@ -91,6 +95,8 @@ export function PaymentMethodPicker({
   onChange,
   order = [],
   onOrderChange,
+  renames = [],
+  onRenamesChange,
   matchMode = MATCH_MODE_CONTAINS,
   onMatchModeChange,
   actionMode = ACTION_MODE_HIDE,
@@ -111,7 +117,8 @@ export function PaymentMethodPicker({
 
   const hidePicker = actionMode === ACTION_MODE_HIDE_ALL;
   const isSortMode = actionMode === ACTION_MODE_SORT;
-  const showMethodPicker = !hidePicker && !isSortMode;
+  const isRenameMode = actionMode === ACTION_MODE_RENAME;
+  const showMethodPicker = !hidePicker && !isSortMode && !isRenameMode;
 
   const allOptions = useMemo(() => {
     const names = new Set(options);
@@ -246,7 +253,9 @@ export function PaymentMethodPicker({
         ? "All payment methods will be hidden at checkout when this rule matches."
         : actionMode === ACTION_MODE_SORT
           ? "Set a position for each payment method."
-          : "Search payment methods to hide at checkout. Pick from the list or add a custom name.";
+          : actionMode === ACTION_MODE_RENAME
+            ? "Choose a payment method and the name shoppers should see at checkout."
+            : "Search payment methods to hide at checkout. Pick from the list or add a custom name.";
 
   const searchLabel =
     actionMode === ACTION_MODE_SHOW
@@ -256,7 +265,8 @@ export function PaymentMethodPicker({
   const actionSelectValue =
     actionMode === ACTION_MODE_SHOW ||
     actionMode === ACTION_MODE_HIDE_ALL ||
-    actionMode === ACTION_MODE_SORT
+    actionMode === ACTION_MODE_SORT ||
+    actionMode === ACTION_MODE_RENAME
       ? actionMode
       : ACTION_MODE_HIDE;
 
@@ -368,6 +378,9 @@ export function PaymentMethodPicker({
         <s-option value={ACTION_MODE_SORT}>
           Sort these payment methods
         </s-option>
+        <s-option value={ACTION_MODE_RENAME}>
+          Rename these payment methods
+        </s-option>
       </s-select>
 
       <s-stack direction="block" gap="small">
@@ -387,6 +400,15 @@ export function PaymentMethodPicker({
           options={options}
           disabled={disabled}
           onChange={(nextOrder) => onOrderChange?.(nextOrder)}
+        />
+      )}
+
+      {isRenameMode && (
+        <PaymentMethodRenameEditor
+          renames={renames}
+          options={options}
+          disabled={disabled}
+          onChange={(nextRenames) => onRenamesChange?.(nextRenames)}
         />
       )}
 

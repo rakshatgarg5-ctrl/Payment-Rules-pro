@@ -81,6 +81,10 @@ export function collectPaymentMethodNamesFromConfigs(configs) {
       const trimmed = String(entry?.name || "").trim();
       if (trimmed) names.add(trimmed);
     }
+    for (const entry of config?.actions?.renames || []) {
+      const trimmed = String(entry?.name || "").trim();
+      if (trimmed) names.add(trimmed);
+    }
   }
 
   return [...names].sort(comparePaymentMethodNames);

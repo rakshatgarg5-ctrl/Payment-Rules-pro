@@ -39,6 +39,7 @@ const EMPTY_CONFIG = {
     mode: "hide",
     hide: [],
     order: [],
+    renames: [],
   },
 };
 
@@ -951,6 +952,7 @@ export default function RuleEditor() {
           <PaymentMethodPicker
             selected={config.actions.hide || []}
             order={config.actions.order || []}
+            renames={config.actions.renames || []}
             options={loaderData.paymentMethodOptions || []}
             disabled={isLoading}
             matchMode={config.actions.matchMode || "contains"}
@@ -970,6 +972,14 @@ export default function RuleEditor() {
                 ) {
                   nextActions.order = [{ name: "", position: 1 }];
                 }
+                if (
+                  mode === "rename" &&
+                  !(prev.actions.renames && prev.actions.renames.length > 0)
+                ) {
+                  nextActions.renames = [
+                    { name: "", operation: "replace", newName: "" },
+                  ];
+                }
                 return { ...prev, actions: nextActions };
               })
             }
@@ -983,6 +993,12 @@ export default function RuleEditor() {
               setConfig((prev) => ({
                 ...prev,
                 actions: { ...prev.actions, order },
+              }))
+            }
+            onRenamesChange={(renames) =>
+              setConfig((prev) => ({
+                ...prev,
+                actions: { ...prev.actions, renames },
               }))
             }
           />

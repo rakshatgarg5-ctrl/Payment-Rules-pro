@@ -199,6 +199,23 @@ export function formatRuleSummary(config) {
             .map((entry) => `${entry.name} (${entry.position})`)
             .join(", ")}${matchSuffix}`
         : "Sort (no payment methods set)";
+  } else if (actionMode === "rename") {
+    const renames = (config?.actions?.renames || [])
+      .map((entry) => ({
+        name: String(entry?.name || "").trim(),
+        newName: String(entry?.newName || "").trim(),
+      }))
+      .filter((entry) => entry.name);
+    thenText =
+      renames.length > 0
+        ? `Rename ${renames
+            .map((entry) =>
+              entry.newName
+                ? `${entry.name} to ${entry.newName}`
+                : entry.name,
+            )
+            .join(", ")}${matchSuffix}`
+        : "Rename (no payment methods set)";
   } else if (actionMode === "show") {
     thenText =
       methods.length > 0
@@ -351,6 +368,10 @@ export function validateRuleConfig(config) {
     name: String(entry?.name || "").trim(),
     position: entry?.position,
   }));
+  const renameEntries = (config?.actions?.renames || []).map((entry) => ({
+    name: String(entry?.name || "").trim(),
+    newName: String(entry?.newName || "").trim(),
+  }));
 
   if (actionMode === "sort") {
     const named = orderEntries.filter((entry) => entry.name);
@@ -392,6 +413,37 @@ export function validateRuleConfig(config) {
         });
       }
     });
+  } else if (actionMode === "rename") {
+    const named = renameEntries.filter((entry) => entry.name);
+    if (named.length === 0) {
+      errors.push({
+        message: "Add at least one payment method to rename.",
+      });
+    }
+
+    const nameSeen = new Set();
+    named.forEach((entry, index) => {
+      const n = index + 1;
+      if (!entry.newName) {
+        errors.push({
+          message: `Rename row ${n}: enter a new payment name.`,
+        });
+      }
+
+      const key = entry.name.toLowerCase();
+      if (nameSeen.has(key)) {
+        warnings.push({
+          message: `"${entry.name}" appears more than once in the rename list.`,
+        });
+      }
+      nameSeen.add(key);
+
+      if (matchMode === "contains" && entry.name.length <= 3) {
+        warnings.push({
+          message: `"${entry.name}" is very short — partial name matching may affect more methods than intended.`,
+        });
+      }
+    });
   } else if (actionMode !== "hide_all" && methods.length === 0) {
     errors.push({
       message:
@@ -401,7 +453,7 @@ export function validateRuleConfig(config) {
     });
   }
 
-  if (actionMode !== "sort") {
+  if (actionMode !== "sort" && actionMode !== "rename") {
     const methodSeen = new Set();
     for (const name of methods) {
       const key = name.toLowerCase();
@@ -446,7 +498,9 @@ export function validateRuleConfig(config) {
     actionMode === "hide_all" ||
     (actionMode === "sort"
       ? orderEntries.some((entry) => entry.name)
-      : methods.length > 0);
+      : actionMode === "rename"
+        ? renameEntries.some((entry) => entry.name)
+        : methods.length > 0);
   const onlyAlways =
     items.length === 1 && items[0]?.type === "always" && hasActionTargets;
   if (onlyAlways) {
@@ -467,6 +521,11 @@ function actionMethodNames(config) {
   const mode = config?.actions?.mode || "hide";
   if (mode === "sort") {
     return (config?.actions?.order || [])
+      .map((entry) => String(entry?.name || "").trim())
+      .filter(Boolean);
+  }
+  if (mode === "rename") {
+    return (config?.actions?.renames || [])
       .map((entry) => String(entry?.name || "").trim())
       .filter(Boolean);
   }

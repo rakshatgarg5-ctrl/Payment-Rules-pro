@@ -439,6 +439,40 @@ function moveOperations(paymentMethods, order, matchMode) {
 }
 
 /**
+ * @param {RunInput['paymentMethods']} paymentMethods
+ * @param {{ name?: string, newName?: string }[]} renames
+ * @param {"contains" | "exact"} matchMode
+ */
+function renameOperations(paymentMethods, renames, matchMode) {
+  const entries = (renames || [])
+    .map((entry) => ({
+      name: String(entry?.name || "").trim(),
+      newName: String(entry?.newName || "").trim(),
+    }))
+    .filter((entry) => entry.name && entry.newName);
+
+  const seen = new Set();
+  /** @type {FunctionRunResult['operations']} */
+  const operations = [];
+
+  for (const entry of entries) {
+    const matches = methodsMatching(paymentMethods, [entry.name], matchMode);
+    for (const method of matches) {
+      if (seen.has(method.id)) continue;
+      seen.add(method.id);
+      operations.push({
+        rename: {
+          paymentMethodId: method.id,
+          name: entry.newName,
+        },
+      });
+    }
+  }
+
+  return operations;
+}
+
+/**
  * @param {RunInput} input
  * @returns {FunctionRunResult}
  */
@@ -448,9 +482,10 @@ export function run(input) {
    *   conditions?: { logic?: string, items?: object[] }
    *   actions?: {
    *     matchMode?: "contains" | "exact"
-   *     mode?: "hide" | "show" | "hide_all" | "sort"
+   *     mode?: "hide" | "show" | "hide_all" | "sort" | "rename"
    *     hide?: string[]
    *     order?: { name?: string, position?: string | number }[]
+   *     renames?: { name?: string, newName?: string, operation?: string }[]
    *   }
    * }}
    */
@@ -479,6 +514,16 @@ export function run(input) {
   if (mode === "sort") {
     return {
       operations: moveOperations(paymentMethods, actions.order || [], matchMode),
+    };
+  }
+
+  if (mode === "rename") {
+    return {
+      operations: renameOperations(
+        paymentMethods,
+        actions.renames || [],
+        matchMode,
+      ),
     };
   }
 

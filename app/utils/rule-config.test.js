@@ -129,6 +129,43 @@ describe("validateRuleConfig", () => {
     );
   });
 
+  it("requires a payment method and a new name for rename mode", () => {
+    const missingMethod = validateRuleConfig({
+      conditions: { logic: "AND", items: [{ type: "always" }] },
+      actions: {
+        mode: "rename",
+        renames: [{ name: "", operation: "replace", newName: "" }],
+      },
+    });
+    expect(
+      missingMethod.errors.some((e) => e.message.includes("to rename")),
+    ).toBe(true);
+
+    const missingNewName = validateRuleConfig({
+      conditions: { logic: "AND", items: [{ type: "always" }] },
+      actions: {
+        mode: "rename",
+        renames: [{ name: "PayPal", operation: "replace", newName: "" }],
+      },
+    });
+    expect(
+      missingNewName.errors.some((e) => e.message.includes("new payment name")),
+    ).toBe(true);
+  });
+
+  it("summarizes rename actions", () => {
+    const summary = formatRuleSummary({
+      conditions: { logic: "AND", items: [{ type: "always" }] },
+      actions: {
+        mode: "rename",
+        renames: [
+          { name: "PayPal", operation: "replace", newName: "PayPal Express" },
+        ],
+      },
+    });
+    expect(summary).toContain("Rename PayPal to PayPal Express");
+  });
+
   it("summarizes sort actions", () => {
     const summary = formatRuleSummary({
       conditions: { logic: "AND", items: [{ type: "always" }] },

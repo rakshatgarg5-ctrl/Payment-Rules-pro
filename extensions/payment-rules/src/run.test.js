@@ -343,6 +343,47 @@ describe("payment rules run", () => {
     ]);
   });
 
+  it("emits rename operations for rename mode", () => {
+    const input = baseInput();
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: { logic: "AND", items: [] },
+      actions: {
+        mode: "rename",
+        matchMode: "exact",
+        renames: [
+          {
+            name: "PayPal",
+            operation: "replace",
+            newName: "PayPal Express",
+          },
+        ],
+      },
+    });
+    expect(run(input).operations).toEqual([
+      {
+        rename: {
+          paymentMethodId: paymentMethods[1].id,
+          name: "PayPal Express",
+        },
+      },
+    ]);
+  });
+
+  it("skips rename rows without a new name", () => {
+    const input = baseInput();
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: { logic: "AND", items: [] },
+      actions: {
+        mode: "rename",
+        matchMode: "exact",
+        renames: [{ name: "PayPal", operation: "replace", newName: "" }],
+      },
+    });
+    expect(run(input).operations).toEqual([]);
+  });
+
   it("skips unmatched sort names", () => {
     const input = baseInput();
     input.paymentCustomization.metafield.value = JSON.stringify({
