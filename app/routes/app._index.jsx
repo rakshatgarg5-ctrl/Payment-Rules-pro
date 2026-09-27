@@ -224,7 +224,7 @@ function RulesList({
                       href={rulePath(rule.id)}
                       onClick={goTo(rulePath(rule.id))}
                     >
-                      Update
+                      Edit
                     </s-link>
                     <s-link
                       tone="critical"
