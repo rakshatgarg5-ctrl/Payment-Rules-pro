@@ -313,6 +313,50 @@ describe("payment rules run", () => {
     ]);
   });
 
+  it("emits move operations for sort mode", () => {
+    const input = baseInput();
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: { logic: "AND", items: [] },
+      actions: {
+        mode: "sort",
+        matchMode: "exact",
+        order: [
+          { name: "PayPal", position: 1 },
+          { name: "Cash on Delivery", position: 3 },
+        ],
+      },
+    });
+    expect(run(input).operations).toEqual([
+      {
+        move: {
+          paymentMethodId: paymentMethods[1].id,
+          index: 0,
+        },
+      },
+      {
+        move: {
+          paymentMethodId: paymentMethods[0].id,
+          index: 2,
+        },
+      },
+    ]);
+  });
+
+  it("skips unmatched sort names", () => {
+    const input = baseInput();
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: { logic: "AND", items: [] },
+      actions: {
+        mode: "sort",
+        matchMode: "exact",
+        order: [{ name: "Venmo", position: 1 }],
+      },
+    });
+    expect(run(input).operations).toEqual([]);
+  });
+
   it("matches selected shipping rate by title", () => {
     const input = baseInput();
     input.paymentCustomization.metafield.value = JSON.stringify({

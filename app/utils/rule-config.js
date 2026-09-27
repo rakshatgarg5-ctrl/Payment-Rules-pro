@@ -185,6 +185,20 @@ export function formatRuleSummary(config) {
   let thenText;
   if (actionMode === "hide_all") {
     thenText = "Hide all payment methods";
+  } else if (actionMode === "sort") {
+    const order = (config?.actions?.order || [])
+      .map((entry) => ({
+        name: String(entry?.name || "").trim(),
+        position: entry?.position,
+      }))
+      .filter((entry) => entry.name)
+      .sort((a, b) => Number(a.position) - Number(b.position));
+    thenText =
+      order.length > 0
+        ? `Sort ${order
+            .map((entry) => `${entry.name} (${entry.position})`)
+            .join(", ")}${matchSuffix}`
+        : "Sort (no payment methods set)";
   } else if (actionMode === "show") {
     thenText =
       methods.length > 0
@@ -333,8 +347,52 @@ export function validateRuleConfig(config) {
   const methods = (config?.actions?.hide || [])
     .map((name) => String(name).trim())
     .filter(Boolean);
+  const orderEntries = (config?.actions?.order || []).map((entry) => ({
+    name: String(entry?.name || "").trim(),
+    position: entry?.position,
+  }));
 
-  if (actionMode !== "hide_all" && methods.length === 0) {
+  if (actionMode === "sort") {
+    const named = orderEntries.filter((entry) => entry.name);
+    if (named.length === 0) {
+      errors.push({
+        message: "Add at least one payment method to sort.",
+      });
+    }
+
+    const nameSeen = new Set();
+    const positionSeen = new Set();
+    named.forEach((entry, index) => {
+      const n = index + 1;
+      const position = Number(entry.position);
+      if (!Number.isInteger(position) || position < 1) {
+        errors.push({
+          message: `Sort row ${n}: enter a whole number position of 1 or greater.`,
+        });
+      } else {
+        if (positionSeen.has(position)) {
+          warnings.push({
+            message: `Position ${position} is used more than once.`,
+          });
+        }
+        positionSeen.add(position);
+      }
+
+      const key = entry.name.toLowerCase();
+      if (nameSeen.has(key)) {
+        warnings.push({
+          message: `"${entry.name}" appears more than once in the sort list.`,
+        });
+      }
+      nameSeen.add(key);
+
+      if (matchMode === "contains" && entry.name.length <= 3) {
+        warnings.push({
+          message: `"${entry.name}" is very short — partial name matching may affect more methods than intended.`,
+        });
+      }
+    });
+  } else if (actionMode !== "hide_all" && methods.length === 0) {
     errors.push({
       message:
         actionMode === "show"
@@ -343,20 +401,22 @@ export function validateRuleConfig(config) {
     });
   }
 
-  const methodSeen = new Set();
-  for (const name of methods) {
-    const key = name.toLowerCase();
-    if (methodSeen.has(key)) {
-      warnings.push({
-        message: `"${name}" appears more than once in the payment method list.`,
-      });
-    }
-    methodSeen.add(key);
+  if (actionMode !== "sort") {
+    const methodSeen = new Set();
+    for (const name of methods) {
+      const key = name.toLowerCase();
+      if (methodSeen.has(key)) {
+        warnings.push({
+          message: `"${name}" appears more than once in the payment method list.`,
+        });
+      }
+      methodSeen.add(key);
 
-    if (matchMode === "contains" && name.length <= 3) {
-      warnings.push({
-        message: `"${name}" is very short — partial name matching may affect more methods than intended.`,
-      });
+      if (matchMode === "contains" && name.length <= 3) {
+        warnings.push({
+          message: `"${name}" is very short — partial name matching may affect more methods than intended.`,
+        });
+      }
     }
   }
 
@@ -382,18 +442,37 @@ export function validateRuleConfig(config) {
     }
   });
 
+  const hasActionTargets =
+    actionMode === "hide_all" ||
+    (actionMode === "sort"
+      ? orderEntries.some((entry) => entry.name)
+      : methods.length > 0);
   const onlyAlways =
-    items.length === 1 &&
-    items[0]?.type === "always" &&
-    (actionMode === "hide_all" || methods.length > 0);
+    items.length === 1 && items[0]?.type === "always" && hasActionTargets;
   if (onlyAlways) {
     warnings.push({
       message:
-        'The "Always" condition applies this rule on every checkout. Remove it if you only want conditional hiding.',
+        'The "Always" condition applies this rule on every checkout. Remove it if you only want conditional changes.',
     });
   }
 
   return { errors, warnings };
+}
+
+/**
+ * @param {object | null | undefined} config
+ * @returns {string[]}
+ */
+function actionMethodNames(config) {
+  const mode = config?.actions?.mode || "hide";
+  if (mode === "sort") {
+    return (config?.actions?.order || [])
+      .map((entry) => String(entry?.name || "").trim())
+      .filter(Boolean);
+  }
+  return (config?.actions?.hide || [])
+    .map((name) => String(name).trim())
+    .filter(Boolean);
 }
 
 /**
@@ -416,11 +495,11 @@ export function findRuleOverlaps(rules) {
         continue;
       }
 
-      const methodsB = (rules[j].config?.actions?.hide || []).map((name) =>
-        String(name).toLowerCase(),
+      const methodsB = actionMethodNames(rules[j].config).map((name) =>
+        name.toLowerCase(),
       );
-      const shared = (rules[i].config?.actions?.hide || []).filter((name) =>
-        methodsB.includes(String(name).toLowerCase()),
+      const shared = actionMethodNames(rules[i].config).filter((name) =>
+        methodsB.includes(name.toLowerCase()),
       );
       if (shared.length > 0) {
         overlaps.push({

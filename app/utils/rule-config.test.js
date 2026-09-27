@@ -108,6 +108,41 @@ describe("validateRuleConfig", () => {
     expect(result.errors.some((e) => e.message.includes("to show"))).toBe(true);
   });
 
+  it("requires payment methods for sort mode", () => {
+    const result = validateRuleConfig({
+      conditions: { logic: "AND", items: [{ type: "always" }] },
+      actions: { mode: "sort", order: [{ name: "", position: 1 }] },
+    });
+    expect(result.errors.some((e) => e.message.includes("to sort"))).toBe(true);
+  });
+
+  it("requires valid positions for sort mode", () => {
+    const result = validateRuleConfig({
+      conditions: { logic: "AND", items: [{ type: "always" }] },
+      actions: {
+        mode: "sort",
+        order: [{ name: "PayPal", position: 0 }],
+      },
+    });
+    expect(result.errors.some((e) => e.message.includes("position"))).toBe(
+      true,
+    );
+  });
+
+  it("summarizes sort actions", () => {
+    const summary = formatRuleSummary({
+      conditions: { logic: "AND", items: [{ type: "always" }] },
+      actions: {
+        mode: "sort",
+        order: [
+          { name: "PayPal", position: 2 },
+          { name: "Shop Pay", position: 1 },
+        ],
+      },
+    });
+    expect(summary).toContain("Sort Shop Pay (1), PayPal (2)");
+  });
+
   it("requires shipping rate values", () => {
     const result = validateRuleConfig({
       conditions: {

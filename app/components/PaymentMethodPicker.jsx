@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { RemovableChip } from "./RemovableChip.jsx";
+import { PaymentMethodSortEditor } from "./PaymentMethodSortEditor.jsx";
 import { readEventValue } from "../utils/events.js";
 import { comparePaymentMethodNames } from "../utils/payment-method-options.js";
 
@@ -21,6 +22,7 @@ export const MATCH_MODE_EXACT = "exact";
 export const ACTION_MODE_HIDE = "hide";
 export const ACTION_MODE_SHOW = "show";
 export const ACTION_MODE_HIDE_ALL = "hide_all";
+export const ACTION_MODE_SORT = "sort";
 
 /**
  * @param {HTMLElement | null} container
@@ -74,6 +76,8 @@ function resolvePlacement(anchorRect, panelHeight) {
  *   selected: string[],
  *   options: string[],
  *   onChange: (selected: string[]) => void,
+ *   order?: { name?: string, position?: string | number }[],
+ *   onOrderChange?: (order: { name: string, position: string | number }[]) => void,
  *   matchMode?: string,
  *   onMatchModeChange?: (mode: string) => void,
  *   actionMode?: string,
@@ -85,6 +89,8 @@ export function PaymentMethodPicker({
   selected,
   options,
   onChange,
+  order = [],
+  onOrderChange,
   matchMode = MATCH_MODE_CONTAINS,
   onMatchModeChange,
   actionMode = ACTION_MODE_HIDE,
@@ -104,6 +110,8 @@ export function PaymentMethodPicker({
   const searchFieldRef = useRef(null);
 
   const hidePicker = actionMode === ACTION_MODE_HIDE_ALL;
+  const isSortMode = actionMode === ACTION_MODE_SORT;
+  const showMethodPicker = !hidePicker && !isSortMode;
 
   const allOptions = useMemo(() => {
     const names = new Set(options);
@@ -169,12 +177,12 @@ export function PaymentMethodPicker({
   }, []);
 
   useEffect(() => {
-    if (hidePicker) setOpen(false);
-  }, [hidePicker]);
+    if (!showMethodPicker) setOpen(false);
+  }, [showMethodPicker]);
 
   useEffect(() => {
     const element = searchFieldRef.current;
-    if (!element || disabled || hidePicker) return undefined;
+    if (!element || disabled || !showMethodPicker) return undefined;
 
     const openPicker = () => setOpen(true);
     element.addEventListener("focus", openPicker);
@@ -183,10 +191,10 @@ export function PaymentMethodPicker({
       element.removeEventListener("focus", openPicker);
       element.removeEventListener("click", openPicker);
     };
-  }, [disabled, hidePicker]);
+  }, [disabled, showMethodPicker]);
 
   useLayoutEffect(() => {
-    if (!open || hidePicker) {
+    if (!open || !showMethodPicker) {
       setPanelStyle(null);
       return undefined;
     }
@@ -200,7 +208,7 @@ export function PaymentMethodPicker({
       window.removeEventListener("resize", handleLayoutChange);
       window.removeEventListener("scroll", handleLayoutChange, true);
     };
-  }, [open, hidePicker, filtered.length, canAddCustom, updatePanelPosition]);
+  }, [open, showMethodPicker, filtered.length, canAddCustom, updatePanelPosition]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -236,12 +244,21 @@ export function PaymentMethodPicker({
       ? "Search payment methods to keep visible at checkout. All other methods will be hidden."
       : actionMode === ACTION_MODE_HIDE_ALL
         ? "All payment methods will be hidden at checkout when this rule matches."
-        : "Search payment methods to hide at checkout. Pick from the list or add a custom name.";
+        : actionMode === ACTION_MODE_SORT
+          ? "Set a position for each payment method."
+          : "Search payment methods to hide at checkout. Pick from the list or add a custom name.";
 
   const searchLabel =
     actionMode === ACTION_MODE_SHOW
       ? "Payment methods to show"
       : "Payment methods to hide";
+
+  const actionSelectValue =
+    actionMode === ACTION_MODE_SHOW ||
+    actionMode === ACTION_MODE_HIDE_ALL ||
+    actionMode === ACTION_MODE_SORT
+      ? actionMode
+      : ACTION_MODE_HIDE;
 
   const panelContent = (
     <s-box
@@ -341,18 +358,16 @@ export function PaymentMethodPicker({
       <s-select
         label="Action"
         labelAccessibilityVisibility="exclusive"
-        value={
-          actionMode === ACTION_MODE_SHOW ||
-          actionMode === ACTION_MODE_HIDE_ALL
-            ? actionMode
-            : ACTION_MODE_HIDE
-        }
+        value={actionSelectValue}
         disabled={disabled}
         onChange={(e) => onActionModeChange?.(readEventValue(e))}
       >
         <s-option value={ACTION_MODE_HIDE}>Hide these Payment methods</s-option>
         <s-option value={ACTION_MODE_SHOW}>Show these Payment methods</s-option>
         <s-option value={ACTION_MODE_HIDE_ALL}>Hide all Payment methods</s-option>
+        <s-option value={ACTION_MODE_SORT}>
+          Sort these payment methods
+        </s-option>
       </s-select>
 
       <s-stack direction="block" gap="small">
@@ -366,7 +381,16 @@ export function PaymentMethodPicker({
         </s-stack>
       </s-stack>
 
-      {!hidePicker && (
+      {isSortMode && (
+        <PaymentMethodSortEditor
+          order={order}
+          options={options}
+          disabled={disabled}
+          onChange={(nextOrder) => onOrderChange?.(nextOrder)}
+        />
+      )}
+
+      {showMethodPicker && (
         <>
           <div ref={containerRef}>
             <div ref={anchorRef}>
@@ -413,7 +437,7 @@ export function PaymentMethodPicker({
 
       {open &&
         !disabled &&
-        !hidePicker &&
+        showMethodPicker &&
         panelStyle &&
         typeof document !== "undefined" &&
         createPortal(

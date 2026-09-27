@@ -399,6 +399,46 @@ function hideOperations(methodsToHide) {
 }
 
 /**
+ * @param {RunInput['paymentMethods']} paymentMethods
+ * @param {{ name?: string, position?: string | number }[]} order
+ * @param {"contains" | "exact"} matchMode
+ */
+function moveOperations(paymentMethods, order, matchMode) {
+  const entries = (order || [])
+    .map((entry) => ({
+      name: String(entry?.name || "").trim(),
+      position: Number(entry?.position),
+    }))
+    .filter(
+      (entry) =>
+        entry.name &&
+        Number.isFinite(entry.position) &&
+        entry.position >= 1,
+    )
+    .sort((a, b) => a.position - b.position);
+
+  const seen = new Set();
+  /** @type {FunctionRunResult['operations']} */
+  const operations = [];
+
+  for (const entry of entries) {
+    const matches = methodsMatching(paymentMethods, [entry.name], matchMode);
+    for (const method of matches) {
+      if (seen.has(method.id)) continue;
+      seen.add(method.id);
+      operations.push({
+        move: {
+          paymentMethodId: method.id,
+          index: Math.max(0, Math.floor(entry.position) - 1),
+        },
+      });
+    }
+  }
+
+  return operations;
+}
+
+/**
  * @param {RunInput} input
  * @returns {FunctionRunResult}
  */
@@ -408,8 +448,9 @@ export function run(input) {
    *   conditions?: { logic?: string, items?: object[] }
    *   actions?: {
    *     matchMode?: "contains" | "exact"
-   *     mode?: "hide" | "show" | "hide_all"
+   *     mode?: "hide" | "show" | "hide_all" | "sort"
    *     hide?: string[]
+   *     order?: { name?: string, position?: string | number }[]
    *   }
    * }}
    */
@@ -434,6 +475,13 @@ export function run(input) {
   const paymentMethods = input.paymentMethods || [];
   const matchMode = actions.matchMode === "exact" ? "exact" : "contains";
   const mode = actions.mode || "hide";
+
+  if (mode === "sort") {
+    return {
+      operations: moveOperations(paymentMethods, actions.order || [], matchMode),
+    };
+  }
+
   const selected = actions.hide || [];
 
   /** @type {RunInput['paymentMethods']} */

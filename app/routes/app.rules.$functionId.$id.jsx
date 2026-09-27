@@ -38,6 +38,7 @@ const EMPTY_CONFIG = {
     matchMode: "contains",
     mode: "hide",
     hide: [],
+    order: [],
   },
 };
 
@@ -949,6 +950,7 @@ export default function RuleEditor() {
         <s-section heading="Actions">
           <PaymentMethodPicker
             selected={config.actions.hide || []}
+            order={config.actions.order || []}
             options={loaderData.paymentMethodOptions || []}
             disabled={isLoading}
             matchMode={config.actions.matchMode || "contains"}
@@ -960,15 +962,27 @@ export default function RuleEditor() {
               }))
             }
             onActionModeChange={(mode) =>
-              setConfig((prev) => ({
-                ...prev,
-                actions: { ...prev.actions, mode },
-              }))
+              setConfig((prev) => {
+                const nextActions = { ...prev.actions, mode };
+                if (
+                  mode === "sort" &&
+                  !(prev.actions.order && prev.actions.order.length > 0)
+                ) {
+                  nextActions.order = [{ name: "", position: 1 }];
+                }
+                return { ...prev, actions: nextActions };
+              })
             }
             onChange={(hide) =>
               setConfig((prev) => ({
                 ...prev,
                 actions: { ...prev.actions, hide },
+              }))
+            }
+            onOrderChange={(order) =>
+              setConfig((prev) => ({
+                ...prev,
+                actions: { ...prev.actions, order },
               }))
             }
           />
