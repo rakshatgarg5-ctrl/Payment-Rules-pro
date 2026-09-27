@@ -20,6 +20,7 @@ export default function App() {
   const { apiKey } = useLoaderData();
   const location = useLocation();
   const homeHref = withSearch("/app", location.search);
+  const supportHref = withSearch("/app/support", location.search);
 
   return (
     <AppProvider embedded apiKey={apiKey}>
@@ -27,6 +28,7 @@ export default function App() {
         <s-link href={homeHref} rel="home">
           Payment rules
         </s-link>
+        <s-link href={supportHref}>Support & tutorials</s-link>
       </s-app-nav>
       <Outlet />
     </AppProvider>
