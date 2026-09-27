@@ -154,6 +154,45 @@ describe("payment rules run", () => {
     expect(run(input).operations).toEqual([]);
   });
 
+  it("matches cart currency and logged-in state", () => {
+    const input = baseInput();
+    input.cart.cost.totalAmount.currencyCode = "EUR";
+    input.cart.buyerIdentity.customer = { hasTags: [] };
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: {
+        logic: "AND",
+        items: [
+          { type: "cart_currency", operator: "in", values: ["EUR"] },
+          { type: "customer_logged_in", value: "logged_in" },
+        ],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(run(input).operations).toHaveLength(1);
+
+    input.cart.buyerIdentity.customer = null;
+    expect(run(input).operations).toEqual([]);
+  });
+
+  it("matches digital products and vendors", () => {
+    const input = baseInput();
+    input.cart.lines[0].merchandise.requiresShipping = false;
+    input.cart.lines[0].merchandise.product.vendor = "Nike";
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: {
+        logic: "AND",
+        items: [
+          { type: "digital_product", operator: "includes_any" },
+          { type: "product_vendor", operator: "includes_any", values: ["Nike"] },
+        ],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(run(input).operations).toHaveLength(1);
+  });
+
   it("matches customer_tag when customer has tag", () => {
     const input = baseInput();
     input.cart.buyerIdentity.customer = {

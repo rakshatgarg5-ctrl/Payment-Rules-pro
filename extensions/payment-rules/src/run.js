@@ -343,7 +343,70 @@ function evaluateCondition(input, condition) {
     );
   }
 
+  if (type === "cart_currency") {
+    const currency = input.cart?.cost?.totalAmount?.currencyCode;
+    return matchStringValues(
+      currency ? [currency] : [],
+      operator,
+      (condition.values || []).map((value) => String(value).toUpperCase()),
+      { normalize: (value) => value.toUpperCase() },
+    );
+  }
+
+  if (type === "digital_product") {
+    const lines = cartLines(input);
+    const digitalCount = lines.filter((line) => isDigitalMerchandise(line.merchandise)).length;
+    if (operator === "includes_all") {
+      return lines.length > 0 && digitalCount === lines.length;
+    }
+    if (operator === "excludes_all") {
+      return digitalCount === 0;
+    }
+    return digitalCount > 0;
+  }
+
+  if (type === "customer_logged_in") {
+    const loggedIn = Boolean(input.cart?.buyerIdentity?.customer);
+    return (condition.value || "logged_in") === "guest" ? !loggedIn : loggedIn;
+  }
+
+  if (type === "product_vendor") {
+    const vendors = cartLines(input)
+      .map((line) => variantMerchandise(line)?.product?.vendor)
+      .filter(Boolean);
+    return matchMembership(vendors, condition.values || [], operator);
+  }
+
   return false;
+}
+
+/**
+ * @param {string[]} actualValues
+ * @param {string[]} needles
+ * @param {string|undefined} operator
+ * @param {{ normalize?: (value: string) => string }} [options]
+ */
+function matchMembership(actualValues, needles, operator, options = {}) {
+  const normalize = options.normalize || ((value) => value.toLowerCase());
+  const values = (needles || []).map((value) => normalize(String(value))).filter(Boolean);
+  if (values.length === 0) return true;
+
+  const actuals = (actualValues || [])
+    .map((value) => normalize(String(value)))
+    .filter(Boolean);
+  const matchesNeedle = (needle) => actuals.some((actual) => actual === needle);
+
+  if (operator === "includes_all") return values.every(matchesNeedle);
+  if (operator === "excludes_all") return !values.some(matchesNeedle);
+  return values.some(matchesNeedle);
+}
+
+/**
+ * @param {RunInput['cart']['lines'][number]['merchandise']} merchandise
+ */
+function isDigitalMerchandise(merchandise) {
+  if (!merchandise || !("requiresShipping" in merchandise)) return false;
+  return merchandise.requiresShipping === false;
 }
 
 /**

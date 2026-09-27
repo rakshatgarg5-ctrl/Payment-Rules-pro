@@ -78,6 +78,14 @@ function defaultCondition(type) {
       };
     case "customer_tag":
       return { type: "customer_tag", operator: "includes_any", values: [] };
+    case "cart_currency":
+      return { type: "cart_currency", operator: "in", values: [] };
+    case "product_vendor":
+      return { type, operator: "includes_any", values: [] };
+    case "digital_product":
+      return { type: "digital_product", operator: "includes_any" };
+    case "customer_logged_in":
+      return { type: "customer_logged_in", value: "logged_in" };
     case "shipping_rate":
       return { type: "shipping_rate", operator: "in", values: [] };
     case "delivery_method":
@@ -129,6 +137,7 @@ function TypeOptions() {
         <s-option value="cart_subtotal">Subtotal Amount</s-option>
         <s-option value="cart_weight">Total Weight</s-option>
         <s-option value="cart_quantity">Total Quantity</s-option>
+        <s-option value="cart_currency">Cart currency</s-option>
       </s-option-group>
       <s-option-group label="Address">
         <s-option value="country">Country</s-option>
@@ -141,9 +150,12 @@ function TypeOptions() {
         <s-option value="sku">SKU</s-option>
         <s-option value="collection">Specific Collection</s-option>
         <s-option value="product">Specific Product</s-option>
+        <s-option value="product_vendor">Product vendor</s-option>
+        <s-option value="digital_product">Digital product</s-option>
       </s-option-group>
       <s-option-group label="Customer">
         <s-option value="customer_tag">Customer Tag</s-option>
+        <s-option value="customer_logged_in">Customer logged-in / guest</s-option>
       </s-option-group>
       <s-option-group label="Delivery">
         <s-option value="shipping_rate">Selected Shipping Rate</s-option>
@@ -316,6 +328,7 @@ function ResourceConditionFields({
   const isProduct = resourceType === "product";
   const selectionsKey = isProduct ? "productSelections" : "collectionSelections";
   const idsKey = isProduct ? "productIds" : "collectionIds";
+  const label = isProduct ? "Products" : "Collections";
   const selections = item[selectionsKey] || [];
 
   return (
@@ -333,7 +346,7 @@ function ResourceConditionFields({
       </s-select>
       <ResourcePickerField
         type={resourceType}
-        label={isProduct ? "Products" : "Collections"}
+        label={label}
         selections={selections}
         disabled={disabled}
         onChange={(nextSelections) =>
@@ -908,6 +921,61 @@ export default function RuleEditor() {
                       resourceType="product"
                       disabled={isLoading}
                     />
+                  )}
+
+                  {item.type === "product_vendor" && (
+                    <MembershipConditionFields
+                      item={item}
+                      index={index}
+                      updateCondition={updateCondition}
+                      fieldKey="values"
+                      label="Product vendors (comma-separated)"
+                      details="Example: Nike, Adidas"
+                    />
+                  )}
+
+                  {item.type === "digital_product" && (
+                    <s-select
+                      label="Cart contents"
+                      value={item.operator || "includes_any"}
+                      onChange={(e) =>
+                        updateCondition(index, { operator: readEventValue(e) })
+                      }
+                    >
+                      <s-option value="includes_any">
+                        Cart includes a digital product
+                      </s-option>
+                      <s-option value="includes_all">
+                        Every item is a digital product
+                      </s-option>
+                      <s-option value="excludes_all">
+                        Cart has no digital products
+                      </s-option>
+                    </s-select>
+                  )}
+
+                  {item.type === "cart_currency" && (
+                    <ListConditionFields
+                      item={item}
+                      index={index}
+                      updateCondition={updateCondition}
+                      label="Currency codes (comma-separated)"
+                      details="Example: USD, EUR, GBP"
+                      uppercase
+                    />
+                  )}
+
+                  {item.type === "customer_logged_in" && (
+                    <s-select
+                      label="Customer"
+                      value={item.value || "logged_in"}
+                      onChange={(e) =>
+                        updateCondition(index, { value: readEventValue(e) })
+                      }
+                    >
+                      <s-option value="logged_in">Logged in</s-option>
+                      <s-option value="guest">Guest</s-option>
+                    </s-select>
                   )}
 
                   {item.type === "customer_tag" && (

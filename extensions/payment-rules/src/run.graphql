@@ -3,6 +3,7 @@ query RunInput($tags_list: [String!]! = [], $collection_ids: [ID!]! = []) {
     cost {
       totalAmount {
         amount
+        currencyCode
       }
       subtotalAmount {
         amount
@@ -25,9 +26,7 @@ query RunInput($tags_list: [String!]! = [], $collection_ids: [ID!]! = []) {
         address1
       }
       selectedDeliveryOption {
-        handle
         title
-        code
         deliveryMethodType
       }
     }
@@ -38,8 +37,10 @@ query RunInput($tags_list: [String!]! = [], $collection_ids: [ID!]! = []) {
           sku
           weight
           weightUnit
+          requiresShipping
           product {
             id
+            vendor
             inCollections(ids: $collection_ids) {
               collectionId
               isMember

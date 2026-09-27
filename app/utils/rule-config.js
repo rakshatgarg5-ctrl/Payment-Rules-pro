@@ -25,6 +25,7 @@ const CONDITION_TYPE_LABELS = {
   cart_subtotal: "Cart subtotal",
   cart_weight: "Cart weight",
   cart_quantity: "Cart quantity",
+  cart_currency: "Cart currency",
   country: "Country",
   province: "Province / state",
   zip: "Zip / postal code",
@@ -33,7 +34,10 @@ const CONDITION_TYPE_LABELS = {
   sku: "SKU",
   collection: "Collection",
   product: "Product",
+  product_vendor: "Product vendor",
+  digital_product: "Digital product",
   customer_tag: "Customer tag",
+  customer_logged_in: "Customer logged-in / guest",
   shipping_rate: "Selected shipping rate",
   delivery_method: "Delivery method",
 };
@@ -157,6 +161,32 @@ export function formatConditionSummary(item) {
     return `Customer tag includes ${values}`;
   }
 
+  if (type === "cart_currency") {
+    const operator = LIST_OPERATOR_LABELS[item.operator || "in"] || "is one of";
+    const values = joinList(item.values || []);
+    if (!values) return `${label} (${operator} — no values)`;
+    return `${label} ${operator} ${values}`;
+  }
+
+  if (type === "product_vendor") {
+    const operator =
+      MEMBERSHIP_OPERATOR_LABELS[item.operator || "includes_any"] ||
+      "includes any of";
+    const values = joinList(item.values || []);
+    if (!values) return `${label} (${operator} — no values)`;
+    return `${label} ${operator} ${values}`;
+  }
+
+  if (type === "digital_product") {
+    if (item.operator === "includes_all") return "Every item is a digital product";
+    if (item.operator === "excludes_all") return "Cart has no digital products";
+    return "Cart includes a digital product";
+  }
+
+  if (type === "customer_logged_in") {
+    return item.value === "guest" ? "Customer is a guest" : "Customer is logged in";
+  }
+
   return label;
 }
 
@@ -261,6 +291,7 @@ function validateCondition(item, index, errors) {
     case "city":
     case "address":
     case "shipping_rate":
+    case "cart_currency":
       if (!item.values?.length) {
         errors.push({
           message: `Condition ${n}: add at least one ${CONDITION_TYPE_LABELS[item.type].toLowerCase()} value.`,
@@ -272,6 +303,15 @@ function validateCondition(item, index, errors) {
           if (!/^[A-Z]{2}$/.test(String(value))) {
             errors.push({
               message: `Condition ${n}: "${value}" is not a valid 2-letter country code (example: US).`,
+            });
+          }
+        }
+      }
+      if (item.type === "cart_currency") {
+        for (const value of item.values) {
+          if (!/^[A-Z]{3}$/.test(String(value))) {
+            errors.push({
+              message: `Condition ${n}: "${value}" is not a valid 3-letter currency code (example: USD).`,
             });
           }
         }
@@ -298,6 +338,14 @@ function validateCondition(item, index, errors) {
       if (!item.values?.length) {
         errors.push({ message: `Condition ${n}: add at least one SKU.` });
       }
+      return;
+    case "product_vendor":
+      if (!item.values?.length) {
+        errors.push({ message: `Condition ${n}: add at least one product vendor.` });
+      }
+      return;
+    case "digital_product":
+    case "customer_logged_in":
       return;
     case "product": {
       const productIds =

@@ -166,6 +166,28 @@ describe("validateRuleConfig", () => {
     expect(summary).toContain("Rename PayPal to PayPal Express");
   });
 
+  it("accepts digital product and currency conditions", () => {
+    const digital = validateRuleConfig({
+      conditions: {
+        logic: "AND",
+        items: [{ type: "digital_product", operator: "includes_any" }],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(digital.errors).toHaveLength(0);
+
+    const currency = validateRuleConfig({
+      conditions: {
+        logic: "AND",
+        items: [{ type: "cart_currency", operator: "in", values: ["usd"] }],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(currency.errors.some((e) => e.message.includes("currency"))).toBe(
+      true,
+    );
+  });
+
   it("summarizes sort actions", () => {
     const summary = formatRuleSummary({
       conditions: { logic: "AND", items: [{ type: "always" }] },
