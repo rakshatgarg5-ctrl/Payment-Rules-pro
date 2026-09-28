@@ -27,6 +27,7 @@ import {
 const METAFIELD_NAMESPACE = "$app:payment-rules";
 const CONFIG_KEY = "function-configuration";
 const VARIABLES_KEY = "input-variables";
+const SHOW_SAVE_WARNINGS = false;
 
 const EMPTY_CONFIG = {
   enabled: true,
@@ -684,7 +685,7 @@ export default function RuleEditor() {
     ) : null;
 
   const warningBanner =
-    validation.warnings.length > 0 ? (
+    SHOW_SAVE_WARNINGS && validation.warnings.length > 0 ? (
       <s-banner tone="warning" heading="Review before saving">
         <ul>
           {validation.warnings.map((warning, index) => (
