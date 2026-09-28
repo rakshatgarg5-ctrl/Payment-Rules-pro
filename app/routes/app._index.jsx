@@ -300,7 +300,7 @@ export default function Index() {
   };
 
   return (
-    <s-page heading="Payment rules">
+    <s-page heading="Payment rules" inlineSize="large">
       <s-button
         slot="primary-action"
         variant="primary"
@@ -310,44 +310,56 @@ export default function Index() {
         Create rule
       </s-button>
 
-      <s-section heading="Your rules">
-        <s-paragraph>
-          Hide checkout payment methods based on country, cart total, products,
-          or customer tags. Rules run at checkout via Shopify Functions.
-        </s-paragraph>
+      <s-grid
+        gridTemplateColumns="1fr minmax(260px, 320px)"
+        gap="large"
+        alignItems="start"
+      >
+        <s-grid-item>
+          <s-section heading="Your rules">
+            <s-paragraph>
+              Hide checkout payment methods based on country, cart total,
+              products, or customer tags. Rules run at checkout via Shopify
+              Functions.
+            </s-paragraph>
 
-        <Suspense fallback={<s-spinner accessibilityLabel="Loading rules" />}>
-          <Await resolve={dashboardData}>
-            {(data) => (
-              <RulesList
-                rules={data.rules}
-                overlaps={data.overlaps}
-                isSubmitting={isSubmitting}
-                setEnabled={setEnabled}
-                deleteRule={deleteRule}
-                rulePath={rulePath}
-                goTo={goTo}
-              />
-            )}
-          </Await>
-        </Suspense>
-      </s-section>
+            <Suspense fallback={<s-spinner accessibilityLabel="Loading rules" />}>
+              <Await resolve={dashboardData}>
+                {(data) => (
+                  <RulesList
+                    rules={data.rules}
+                    overlaps={data.overlaps}
+                    isSubmitting={isSubmitting}
+                    setEnabled={setEnabled}
+                    deleteRule={deleteRule}
+                    rulePath={rulePath}
+                    goTo={goTo}
+                  />
+                )}
+              </Await>
+            </Suspense>
+          </s-section>
+        </s-grid-item>
 
-      <s-section slot="aside" heading="Tips">
-        <s-unordered-list>
-          <s-list-item>
-            Choose payment methods from the list or add a custom name that
-            matches checkout.
-          </s-list-item>
-          <s-list-item>
-            Customer tag conditions only apply when a customer is logged in.
-          </s-list-item>
-          <s-list-item>
-            You can also manage rules under Settings → Payments →
-            Customizations.
-          </s-list-item>
-        </s-unordered-list>
-      </s-section>
+        <s-grid-item>
+          <s-section heading="Tips">
+            <s-unordered-list>
+              <s-list-item>
+                Choose payment methods from the list or add a custom name that
+                matches checkout.
+              </s-list-item>
+              <s-list-item>
+                Customer tag conditions only apply when a customer is logged
+                in.
+              </s-list-item>
+              <s-list-item>
+                You can also manage rules under Settings → Payments →
+                Customizations.
+              </s-list-item>
+            </s-unordered-list>
+          </s-section>
+        </s-grid-item>
+      </s-grid>
     </s-page>
   );
 }

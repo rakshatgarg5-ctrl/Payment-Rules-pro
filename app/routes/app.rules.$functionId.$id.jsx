@@ -720,7 +720,7 @@ export default function RuleEditor() {
       </SaveBar>
 
       <form onSubmit={handleSubmit} onReset={handleReset}>
-        <s-page heading={title || "New payment rule"}>
+        <s-page heading={title || "New payment rule"} inlineSize="large">
         <s-link
           href={homeHref}
           variant="breadcrumb"
@@ -733,16 +733,16 @@ export default function RuleEditor() {
           Payment rules
         </s-link>
 
-        {errorBanner}
-        {warningBanner}
+        <s-grid
+          gridTemplateColumns="1fr minmax(260px, 320px)"
+          gap="large"
+          alignItems="start"
+        >
+          <s-grid-item>
+            {errorBanner}
+            {warningBanner}
 
-        <s-section slot="aside" heading="Rule summary">
-          <s-box padding="base" background="subdued" borderRadius="base">
-            <s-paragraph>{ruleSummary}</s-paragraph>
-          </s-box>
-        </s-section>
-
-        <s-section heading="Rule details">
+            <s-section heading="Rule details">
           <s-stack direction="block" gap="base">
             <s-text-field
               label="Rule name"
@@ -1071,6 +1071,16 @@ export default function RuleEditor() {
             }
           />
         </s-section>
+          </s-grid-item>
+
+          <s-grid-item>
+            <s-section heading="Rule summary">
+              <s-box padding="base" background="subdued" borderRadius="base">
+                <s-paragraph>{ruleSummary}</s-paragraph>
+              </s-box>
+            </s-section>
+          </s-grid-item>
+        </s-grid>
         </s-page>
       </form>
     </>
