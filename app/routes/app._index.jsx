@@ -10,10 +10,7 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticateAdmin } from "../shopify.server.js";
 import { withSearch } from "../utils/app-path.js";
-import {
-  findRuleOverlaps,
-  formatRuleSummary,
-} from "../utils/rule-config.js";
+import { formatRuleSummary } from "../utils/rule-config.js";
 import { parseRuleConfigValue } from "../utils/payment-method-options.js";
 
 const FUNCTION_HANDLE = "payment-rules";
@@ -54,10 +51,7 @@ async function loadDashboardData(admin) {
     };
   });
 
-  return {
-    rules,
-    overlaps: findRuleOverlaps(rules),
-  };
+  return { rules };
 }
 
 export const loader = async ({ request }) => {
@@ -141,7 +135,6 @@ export const action = async ({ request }) => {
 /**
  * @param {{
  *   rules: Array<{ id: string, title: string, enabled: boolean, summary: string }>,
- *   overlaps: Array<{ ruleA: string, ruleB: string, methods: string[] }>,
  *   isSubmitting: boolean,
  *   setEnabled: Function,
  *   deleteRule: Function,
@@ -151,7 +144,6 @@ export const action = async ({ request }) => {
  */
 function RulesList({
   rules,
-  overlaps,
   isSubmitting,
   setEnabled,
   deleteRule,
@@ -160,19 +152,6 @@ function RulesList({
 }) {
   return (
     <>
-      {overlaps.length > 0 && (
-        <s-banner tone="warning" heading="Possible rule overlap">
-          <ul>
-            {overlaps.map((overlap, index) => (
-              <li key={index}>
-                &quot;{overlap.ruleA}&quot; and &quot;{overlap.ruleB}&quot; both
-                hide {overlap.methods.join(", ")}.
-              </li>
-            ))}
-          </ul>
-        </s-banner>
-      )}
-
       {rules.length === 0 ? (
         <s-box padding="base" background="subdued" borderRadius="base">
           <s-paragraph>
@@ -328,7 +307,6 @@ export default function Index() {
                 {(data) => (
                   <RulesList
                     rules={data.rules}
-                    overlaps={data.overlaps}
                     isSubmitting={isSubmitting}
                     setEnabled={setEnabled}
                     deleteRule={deleteRule}
