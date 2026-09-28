@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
 import {
   useActionData,
@@ -613,6 +613,15 @@ export default function RuleEditor() {
       void shopify.saveBar.hide(SAVE_BAR_ID);
     };
   }, [shopify]);
+
+  useLayoutEffect(() => {
+    const hasErrors =
+      clientErrors.length > 0 || (actionData?.errors?.length ?? 0) > 0;
+    if (!hasErrors) return;
+
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    document.documentElement.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [clientErrors, actionData?.errors]);
 
   const updateCondition = (index, patch) => {
     setConfig((prev) => {
