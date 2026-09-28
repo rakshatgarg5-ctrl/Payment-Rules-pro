@@ -624,16 +624,6 @@ export default function RuleEditor() {
     });
   };
 
-  const removeCondition = (index) => {
-    setConfig((prev) => ({
-      ...prev,
-      conditions: {
-        ...prev.conditions,
-        items: (prev.conditions.items || []).filter((_, i) => i !== index),
-      },
-    }));
-  };
-
   const addCondition = () => {
     setConfig((prev) => ({
       ...prev,
@@ -790,32 +780,23 @@ export default function RuleEditor() {
                 borderColor="auto"
               >
                 <s-stack direction="block" gap="base">
-                  <s-stack direction="inline" gap="base" alignItems="end">
-                    <s-select
-                      label="Type"
-                      value={item.type || "always"}
-                      onChange={(e) => {
-                        const nextType = readEventValue(e);
-                        setConfig((prev) => {
-                          const items = [...prev.conditions.items];
-                          items[index] = defaultCondition(nextType);
-                          return {
-                            ...prev,
-                            conditions: { ...prev.conditions, items },
-                          };
-                        });
-                      }}
-                    >
-                      <TypeOptions />
-                    </s-select>
-                    <s-button
-                      tone="critical"
-                      variant="tertiary"
-                      onClick={() => removeCondition(index)}
-                    >
-                      Remove
-                    </s-button>
-                  </s-stack>
+                  <s-select
+                    label="Type"
+                    value={item.type || "always"}
+                    onChange={(e) => {
+                      const nextType = readEventValue(e);
+                      setConfig((prev) => {
+                        const items = [...prev.conditions.items];
+                        items[index] = defaultCondition(nextType);
+                        return {
+                          ...prev,
+                          conditions: { ...prev.conditions, items },
+                        };
+                      });
+                    }}
+                  >
+                    <TypeOptions />
+                  </s-select>
 
                   {item.type === "always" && (
                     <s-paragraph>
