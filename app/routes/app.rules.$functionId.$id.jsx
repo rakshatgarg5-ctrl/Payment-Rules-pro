@@ -743,23 +743,15 @@ export default function RuleEditor() {
             {warningBanner}
 
             <s-section heading="Rule details">
-          <s-stack direction="block" gap="base">
-            <s-text-field
-              label="Rule name"
-              value={title}
-              onInput={(e) => setTitle(readEventValue(e))}
-              disabled={isLoading}
-              required
-              autocomplete="off"
-            />
-            <s-checkbox
-              label="Rule is active"
-              checked={enabled}
-              onChange={(e) => setEnabled(readEventChecked(e))}
-              disabled={isLoading}
-            />
-          </s-stack>
-        </s-section>
+              <s-text-field
+                label="Rule name"
+                value={title}
+                onInput={(e) => setTitle(readEventValue(e))}
+                disabled={isLoading}
+                required
+                autocomplete="off"
+              />
+            </s-section>
 
         <s-section heading="Conditions">
           <s-stack direction="block" gap="base">

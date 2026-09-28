@@ -334,6 +334,10 @@ export default function Index() {
                 You can also manage rules under Settings → Payments →
                 Customizations.
               </s-list-item>
+              <s-list-item>
+                Credit card (Shopify Payments) can only be customized on
+                Shopify Plus plans.
+              </s-list-item>
             </s-unordered-list>
           </s-section>
         </s-grid-item>
