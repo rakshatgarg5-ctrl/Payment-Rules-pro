@@ -10,16 +10,26 @@ export const loader = async ({ request }) => {
 
 export default function SupportPage() {
   return (
-    <s-page heading="Support">
-      <s-section heading="Need Help?">
+    <s-page heading="Support & tutorials">
+      <s-section>
         <s-stack direction="block" gap="base">
+          <s-heading fontSize="large-400">Need help?</s-heading>
           <s-paragraph>
-            Have a question or running into an issue? Reach out to our support
-            team and we&apos;ll get back to you as soon as possible.
+            Have a question, running into an issue, or finding that a rule
+            isn&apos;t working at checkout? Need help setting something up or
+            have a feature request? Our support team is here to help.
           </s-paragraph>
-          <s-box padding="base" background="subdued" borderRadius="base">
-            <s-link href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</s-link>
-          </s-box>
+          <s-paragraph>
+            Please contact us at{" "}
+            <s-link href={`mailto:${SUPPORT_EMAIL}`}>
+              <s-text tone="info">{SUPPORT_EMAIL}</s-text>
+            </s-link>{" "}
+            and include your store URL along with a brief description of the
+            issue. This helps us investigate and assist you faster.
+          </s-paragraph>
+          <s-paragraph>
+            We&apos;ll get back to you as soon as possible.
+          </s-paragraph>
         </s-stack>
       </s-section>
     </s-page>
