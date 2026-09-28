@@ -583,35 +583,36 @@ function actionMethodNames(config) {
 }
 
 /**
- * @param {{ title: string, config?: object }[]} rules
+ * @param {{ title: string, enabled?: boolean, config?: object }[]} rules
  */
 export function findRuleOverlaps(rules) {
+  const activeRules = rules.filter((rule) => rule.enabled);
   /** @type {{ ruleA: string, ruleB: string, methods: string[] }[]} */
   const overlaps = [];
 
-  for (let i = 0; i < rules.length; i += 1) {
-    for (let j = i + 1; j < rules.length; j += 1) {
-      const modeA = rules[i].config?.actions?.mode || "hide";
-      const modeB = rules[j].config?.actions?.mode || "hide";
+  for (let i = 0; i < activeRules.length; i += 1) {
+    for (let j = i + 1; j < activeRules.length; j += 1) {
+      const modeA = activeRules[i].config?.actions?.mode || "hide";
+      const modeB = activeRules[j].config?.actions?.mode || "hide";
       if (modeA === "hide_all" || modeB === "hide_all") {
         overlaps.push({
-          ruleA: rules[i].title,
-          ruleB: rules[j].title,
+          ruleA: activeRules[i].title,
+          ruleB: activeRules[j].title,
           methods: ["all payment methods"],
         });
         continue;
       }
 
-      const methodsB = actionMethodNames(rules[j].config).map((name) =>
+      const methodsB = actionMethodNames(activeRules[j].config).map((name) =>
         name.toLowerCase(),
       );
-      const shared = actionMethodNames(rules[i].config).filter((name) =>
+      const shared = actionMethodNames(activeRules[i].config).filter((name) =>
         methodsB.includes(name.toLowerCase()),
       );
       if (shared.length > 0) {
         overlaps.push({
-          ruleA: rules[i].title,
-          ruleB: rules[j].title,
+          ruleA: activeRules[i].title,
+          ruleB: activeRules[j].title,
           methods: shared,
         });
       }

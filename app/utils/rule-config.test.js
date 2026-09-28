@@ -230,18 +230,36 @@ describe("validateRuleConfig", () => {
 });
 
 describe("findRuleOverlaps", () => {
-  it("detects shared hide targets across rules", () => {
+  it("detects shared hide targets across active rules", () => {
     const overlaps = findRuleOverlaps([
       {
         title: "Rule A",
+        enabled: true,
         config: { actions: { hide: ["PayPal", "COD"] } },
       },
       {
         title: "Rule B",
+        enabled: true,
         config: { actions: { hide: ["paypal"] } },
       },
     ]);
     expect(overlaps).toHaveLength(1);
     expect(overlaps[0].methods).toContain("PayPal");
+  });
+
+  it("ignores overlaps when either rule is inactive", () => {
+    const overlaps = findRuleOverlaps([
+      {
+        title: "Rule A",
+        enabled: true,
+        config: { actions: { hide: ["Afterpay"] } },
+      },
+      {
+        title: "Rule B",
+        enabled: false,
+        config: { actions: { hide: ["Afterpay"] } },
+      },
+    ]);
+    expect(overlaps).toHaveLength(0);
   });
 });
