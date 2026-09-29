@@ -23,20 +23,20 @@
     "node": ">=20.10"
   },
   "dependencies": {
-    "@prisma/client": "^6.2.1",
-    "@react-router/dev": "^7.0.0",
-    "@react-router/fs-routes": "^7.0.0",
-    "@react-router/node": "^7.0.0",
-    "@react-router/serve": "^7.0.0",
+    "@prisma/client": "^6.19.0",
+    "@react-router/dev": "^7.18.4",
+    "@react-router/fs-routes": "^7.18.4",
+    "@react-router/node": "^7.18.4",
+    "@react-router/serve": "^7.18.4",
     "@shopify/app-bridge-react": "^4.1.6",
     "@shopify/app-bridge-ui-types": "^0.1.1",
-    "@shopify/shopify-app-react-router": "^0.1.0",
-    "@shopify/shopify-app-session-storage-prisma": "^6.0.0",
+    "@shopify/shopify-app-react-router": "^3.0.1",
+    "@shopify/shopify-app-session-storage-prisma": "^11.0.0",
     "isbot": "^5.1.0",
-    "prisma": "^6.2.1",
+    "prisma": "^6.19.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router": "^7.0.0"
+    "react-router": "^7.18.4"
   },
   "devDependencies": {
     "@shopify/api-codegen-preset": "^1.1.1",

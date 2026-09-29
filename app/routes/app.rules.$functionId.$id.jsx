@@ -9,7 +9,7 @@ import {
   useSubmit,
 } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { authenticate } from "../shopify.server.js";
+import { authenticateAdmin } from "../shopify.server.js";
 import { CountryConditionFields } from "../components/CountryConditionFields.jsx";
 import { PaymentMethodPicker } from "../components/PaymentMethodPicker.jsx";
 import { ResourcePickerField } from "../components/ResourcePickerField.jsx";
@@ -363,7 +363,7 @@ function ResourceConditionFields({
 
 export const loader = async ({ params, request }) => {
   const { id } = params;
-  const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticateAdmin(request);
   const paymentMethodOptions = await loadPaymentMethodOptions(admin);
 
   if (id === "new") {
@@ -432,7 +432,7 @@ export const loader = async ({ params, request }) => {
 export const action = async ({ params, request }) => {
   const functionHandle = decodeURIComponent(params.functionId || "");
   const { id } = params;
-  const { admin } = await authenticate.admin(request);
+  const { admin } = await authenticateAdmin(request);
   const homePath = withSearch("/app", searchFromRequest(request));
   const formData = await request.formData();
 
