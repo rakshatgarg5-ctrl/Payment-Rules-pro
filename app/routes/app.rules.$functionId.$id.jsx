@@ -634,6 +634,16 @@ export default function RuleEditor() {
     });
   };
 
+  const removeCondition = (index) => {
+    setConfig((prev) => ({
+      ...prev,
+      conditions: {
+        ...prev.conditions,
+        items: (prev.conditions.items || []).filter((_, i) => i !== index),
+      },
+    }));
+  };
+
   const addCondition = () => {
     setConfig((prev) => ({
       ...prev,
@@ -790,23 +800,42 @@ export default function RuleEditor() {
                 borderColor="auto"
               >
                 <s-stack direction="block" gap="base">
-                  <s-select
-                    label="Type"
-                    value={item.type || "always"}
-                    onChange={(e) => {
-                      const nextType = readEventValue(e);
-                      setConfig((prev) => {
-                        const items = [...prev.conditions.items];
-                        items[index] = defaultCondition(nextType);
-                        return {
-                          ...prev,
-                          conditions: { ...prev.conditions, items },
-                        };
-                      });
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "0.5rem",
                     }}
                   >
-                    <TypeOptions />
-                  </s-select>
+                    <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+                      <s-select
+                        label="Type"
+                        value={item.type || "always"}
+                        onChange={(e) => {
+                          const nextType = readEventValue(e);
+                          setConfig((prev) => {
+                            const items = [...prev.conditions.items];
+                            items[index] = defaultCondition(nextType);
+                            return {
+                              ...prev,
+                              conditions: { ...prev.conditions, items },
+                            };
+                          });
+                        }}
+                      >
+                        <TypeOptions />
+                      </s-select>
+                    </div>
+                    {index > 0 && (
+                      <s-clickable
+                        disabled={isLoading}
+                        accessibilityLabel="Remove condition"
+                        onClick={() => removeCondition(index)}
+                      >
+                        <s-icon type="x-circle" />
+                      </s-clickable>
+                    )}
+                  </div>
 
                   {item.type === "always" && (
                     <s-paragraph>
