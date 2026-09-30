@@ -81,7 +81,7 @@ function addressFieldValues(input, field) {
 /**
  * @param {RunInput} input
  */
-function selectedShippingRateValues(input) {
+function selectedShippingMethodValues(input) {
   /** @type {string[]} */
   const values = [];
   for (const group of input.cart.deliveryGroups || []) {
@@ -327,7 +327,7 @@ function evaluateCondition(input, condition) {
 
   if (type === "shipping_rate") {
     return matchStringValues(
-      selectedShippingRateValues(input),
+      selectedShippingMethodValues(input),
       operator,
       condition.values || [],
       { mode: "contains" },

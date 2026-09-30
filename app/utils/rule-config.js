@@ -38,8 +38,8 @@ const CONDITION_TYPE_LABELS = {
   digital_product: "Digital product",
   customer_tag: "Customer tag",
   customer_logged_in: "Customer logged-in / guest",
-  shipping_rate: "Selected shipping rate",
-  delivery_method: "Delivery method",
+  shipping_rate: "Selected shipping method",
+  delivery_method: "Delivery method type",
 };
 
 const DELIVERY_METHOD_LABELS = {

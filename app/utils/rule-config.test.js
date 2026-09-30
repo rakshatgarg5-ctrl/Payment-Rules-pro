@@ -202,7 +202,7 @@ describe("validateRuleConfig", () => {
     expect(summary).toContain("Sort Shop Pay (1), PayPal (2)");
   });
 
-  it("requires shipping rate values", () => {
+  it("requires shipping method values", () => {
     const result = validateRuleConfig({
       conditions: {
         logic: "AND",
@@ -211,7 +211,7 @@ describe("validateRuleConfig", () => {
       actions: { hide: ["PayPal"] },
     });
     expect(
-      result.errors.some((e) => e.message.includes("shipping rate")),
+      result.errors.some((e) => e.message.includes("shipping method")),
     ).toBe(true);
   });
 

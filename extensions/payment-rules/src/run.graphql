@@ -27,6 +27,8 @@ query RunInput($tags_list: [String!]! = [], $collection_ids: [ID!]! = []) {
       }
       selectedDeliveryOption {
         title
+        handle
+        code
         deliveryMethodType
       }
     }

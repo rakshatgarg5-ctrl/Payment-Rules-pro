@@ -159,8 +159,8 @@ function TypeOptions() {
         <s-option value="customer_logged_in">Customer logged-in / guest</s-option>
       </s-option-group>
       <s-option-group label="Delivery">
-        <s-option value="shipping_rate">Selected Shipping Rate</s-option>
-        <s-option value="delivery_method">Delivery Method</s-option>
+        <s-option value="shipping_rate">Selected shipping method</s-option>
+        <s-option value="delivery_method">Delivery method type</s-option>
       </s-option-group>
     </>
   );
@@ -227,7 +227,7 @@ function DeliveryMethodConditionFields({ item, index, updateCondition }) {
         <s-option value="not_in">Is not one of</s-option>
       </s-select>
       <s-stack direction="block" gap="small">
-        <s-text type="strong">Delivery methods</s-text>
+        <s-text type="strong">Delivery method types</s-text>
         {[
           { value: "SHIPPING", label: "Shipping" },
           { value: "PICK_UP", label: "Local pickup" },
@@ -1008,8 +1008,8 @@ export default function RuleEditor() {
                       item={item}
                       index={index}
                       updateCondition={updateCondition}
-                      label="Shipping rate names (comma-separated)"
-                      details="Matches the selected checkout shipping rate title. Partial match supported. Example: Express, Standard"
+                      label="Shipping method names (comma-separated)"
+                      details="Matches the shipping method the customer selected at checkout (title, handle, or code). Partial match supported. Example: Standard Shipping, standard-shipping, Express"
                     />
                   )}
 

@@ -437,7 +437,7 @@ describe("payment rules run", () => {
     expect(run(input).operations).toEqual([]);
   });
 
-  it("matches selected shipping rate by title", () => {
+  it("matches selected shipping method by title", () => {
     const input = baseInput();
     input.paymentCustomization.metafield.value = JSON.stringify({
       enabled: true,
@@ -457,6 +457,53 @@ describe("payment rules run", () => {
 
     input.cart.deliveryGroups[0].selectedDeliveryOption.title =
       "Express Shipping";
+    expect(run(input).operations).toHaveLength(1);
+  });
+
+  it("matches selected shipping method by handle", () => {
+    const input = baseInput();
+    input.cart.deliveryGroups[0].selectedDeliveryOption.handle = "express-shipping";
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: {
+        logic: "AND",
+        items: [
+          {
+            type: "shipping_rate",
+            operator: "in",
+            values: ["standard-shipping"],
+          },
+        ],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(run(input).operations).toEqual([]);
+
+    input.cart.deliveryGroups[0].selectedDeliveryOption.handle =
+      "standard-shipping";
+    expect(run(input).operations).toHaveLength(1);
+  });
+
+  it("matches selected shipping method by code", () => {
+    const input = baseInput();
+    input.cart.deliveryGroups[0].selectedDeliveryOption.code = "OTHER";
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: {
+        logic: "AND",
+        items: [
+          {
+            type: "shipping_rate",
+            operator: "in",
+            values: ["FEDEX_GROUND"],
+          },
+        ],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(run(input).operations).toEqual([]);
+
+    input.cart.deliveryGroups[0].selectedDeliveryOption.code = "FEDEX_GROUND";
     expect(run(input).operations).toHaveLength(1);
   });
 
