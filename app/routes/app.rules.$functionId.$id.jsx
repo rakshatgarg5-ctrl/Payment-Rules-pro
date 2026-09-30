@@ -1,11 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
 import {
+  isRouteErrorResponse,
   useActionData,
   useLoaderData,
   useLocation,
   useNavigate,
   useNavigation,
+  useRouteError,
   useSubmit,
 } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -28,6 +30,11 @@ import {
   parseGraphqlResponse,
   readGraphqlJson,
 } from "../utils/graphql-response.server.js";
+import {
+  normalizeRuleSaveErrors,
+  parsePaymentCustomizationRouteId,
+  paymentCustomizationGid,
+} from "../utils/payment-customization-id.server.js";
 
 const METAFIELD_NAMESPACE = "$app:payment-rules";
 const CONFIG_KEY = "function-configuration";
@@ -378,6 +385,12 @@ export const loader = async ({ params, request }) => {
       paymentMethodOptions,
     };
   }
+
+  const ruleId = parsePaymentCustomizationRouteId(id);
+  if (!ruleId) {
+    throw new Response("Rule not found.", { status: 404 });
+  }
+
   const response = await admin.graphql(
     `#graphql
       query getPaymentCustomization($id: ID!) {
@@ -392,7 +405,7 @@ export const loader = async ({ params, request }) => {
       }`,
     {
       variables: {
-        id: `gid://shopify/PaymentCustomization/${id}`,
+        id: paymentCustomizationGid(ruleId),
       },
     },
   );
@@ -515,15 +528,22 @@ export const action = async ({ params, request }) => {
       (json) => json.data?.paymentCustomizationCreate?.userErrors,
     );
     if (errors.length > 0) {
-      return { errors };
+      return normalizeRuleSaveErrors(errors);
     }
     if (!responseJson.data?.paymentCustomizationCreate?.paymentCustomization) {
-      return { errors: [{ message: "Could not create rule." }] };
+      return normalizeRuleSaveErrors([
+        { message: "Could not create rule." },
+      ]);
     }
     return {
       errors: [],
       redirectTo: homePath,
     };
+  }
+
+  const ruleId = parsePaymentCustomizationRouteId(id);
+  if (!ruleId) {
+    return normalizeRuleSaveErrors([{ message: "Payment customization not found" }]);
   }
 
   const response = await admin.graphql(
@@ -540,7 +560,7 @@ export const action = async ({ params, request }) => {
       }`,
     {
       variables: {
-        id: `gid://shopify/PaymentCustomization/${id}`,
+        id: paymentCustomizationGid(ruleId),
         input: paymentCustomizationInput,
       },
     },
@@ -552,12 +572,14 @@ export const action = async ({ params, request }) => {
     (json) => json.data?.paymentCustomizationUpdate?.userErrors,
   );
   if (errors.length > 0) {
-    return { errors };
+    return normalizeRuleSaveErrors(errors);
   }
   if (!responseJson.data?.paymentCustomizationUpdate?.paymentCustomization) {
-    return { errors: [{ message: "Could not save rule." }] };
+    return normalizeRuleSaveErrors([
+      { message: "Payment customization not found" },
+    ]);
   }
-  return { errors: [], redirectTo: homePath };
+  return { errors: [], redirectTo: homePath, ruleNotFound: false };
 };
 
 export const headers = (headersArgs) => {
@@ -708,14 +730,29 @@ export default function RuleEditor() {
   };
 
   const displayErrors = clientErrors.length > 0 ? clientErrors : actionData?.errors || [];
+  const ruleDeletedOnSave = Boolean(actionData?.ruleNotFound);
   const errorBanner =
     displayErrors.length > 0 ? (
-      <s-banner tone="critical" heading="Could not save rule">
+      <s-banner
+        tone="critical"
+        heading={ruleDeletedOnSave ? "Rule no longer exists" : "Could not save rule"}
+      >
         <ul>
           {displayErrors.map((error, index) => (
             <li key={index}>{error.message}</li>
           ))}
         </ul>
+        {ruleDeletedOnSave ? (
+          <s-link
+            href={homeHref}
+            onClick={(event) => {
+              event.preventDefault();
+              navigate(homeHref);
+            }}
+          >
+            Back to payment rules
+          </s-link>
+        ) : null}
       </s-banner>
     ) : null;
 
@@ -1113,4 +1150,48 @@ export default function RuleEditor() {
       </form>
     </>
   );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const homeHref = withSearch("/app", location.search);
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    const message =
+      typeof error.data === "string" && error.data
+        ? error.data
+        : "This payment rule does not exist or was deleted.";
+
+    return (
+      <s-page heading="Rule not found" inlineSize="large">
+        <s-link
+          href={homeHref}
+          variant="breadcrumb"
+          slot="breadcrumb-actions"
+          onClick={(event) => {
+            event.preventDefault();
+            navigate(homeHref);
+          }}
+        >
+          Payment rules
+        </s-link>
+        <s-banner tone="critical" heading="Rule not found">
+          <s-paragraph>{message}</s-paragraph>
+          <s-link
+            href={homeHref}
+            onClick={(event) => {
+              event.preventDefault();
+              navigate(homeHref);
+            }}
+          >
+            Back to payment rules
+          </s-link>
+        </s-banner>
+      </s-page>
+    );
+  }
+
+  return boundary.error(error);
 }
