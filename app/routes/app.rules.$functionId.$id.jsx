@@ -158,7 +158,7 @@ function TypeOptions() {
         <s-option value="customer_tag">Customer Tag</s-option>
         <s-option value="customer_logged_in">Customer logged-in / guest</s-option>
       </s-option-group>
-      <s-option-group label="Delivery">
+      <s-option-group label="Shipping and Delivery">
         <s-option value="shipping_rate">Selected shipping method</s-option>
         <s-option value="delivery_method">Delivery method type</s-option>
       </s-option-group>
