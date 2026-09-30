@@ -1,21 +1,35 @@
-FROM node:18-alpine
+# --- Install all dependencies (including devDeps for Vite / React Router build) ---
+FROM node:20-alpine AS deps
 RUN apk add --no-cache openssl
+WORKDIR /app
 
-EXPOSE 3000
+COPY package.json package-lock.json* ./
+COPY extensions ./extensions
 
+RUN npm ci && npm cache clean --force
+
+# --- Build app ---
+FROM deps AS build
+COPY . .
+RUN npx prisma generate
+RUN npm run build
+
+# --- Production image ---
+FROM node:20-alpine AS production
+RUN apk add --no-cache openssl
 WORKDIR /app
 
 ENV NODE_ENV=production
 
 COPY package.json package-lock.json* ./
+COPY extensions ./extensions
 
 RUN npm ci --omit=dev && npm cache clean --force
-# Remove CLI packages since we don't need them in production by default.
-# Remove this line if you want to run CLI commands in your container.
-RUN npm remove @shopify/cli
 
-COPY . .
+COPY --from=build /app/build ./build
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY prisma ./prisma
 
-RUN npm run build
+EXPOSE 3000
 
 CMD ["npm", "run", "docker-start"]
