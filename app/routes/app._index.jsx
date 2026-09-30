@@ -5,9 +5,11 @@ import {
   useLoaderData,
   useLocation,
   useNavigate,
+  useRevalidator,
 } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import { ListLoadingState } from "../components/ListLoadingState.jsx";
 import { authenticateAdmin } from "../shopify.server.js";
 import { withSearch } from "../utils/app-path.js";
 import { formatRuleSummary } from "../utils/rule-config.js";
@@ -245,12 +247,24 @@ function RulesList({
   );
 }
 
+export function HydrateFallback() {
+  return (
+    <s-page heading="Payment rules" inlineSize="large">
+      <s-section heading="Your rules">
+        <ListLoadingState message="Loading your rules…" />
+      </s-section>
+    </s-page>
+  );
+}
+
 export default function Index() {
   const { functionHandle, dashboardData } = useLoaderData();
   const fetcher = useFetcher();
+  const revalidator = useRevalidator();
   const location = useLocation();
   const navigate = useNavigate();
   const shopify = useAppBridge();
+  const isRefreshingRules = revalidator.state === "loading";
   const createPath = withSearch(
     `/app/rules/${functionHandle}/new`,
     location.search,
@@ -325,30 +339,36 @@ export default function Index() {
               Functions.
             </s-paragraph>
 
-            <Suspense fallback={<s-spinner accessibilityLabel="Loading rules" />}>
-              <Await
-                resolve={dashboardData}
-                errorElement={
-                  <s-banner tone="critical" heading="Could not load rules">
-                    <s-paragraph>
-                      We couldn&apos;t load your payment rules from Shopify.
-                      Refresh the page or reopen the app from Shopify admin.
-                    </s-paragraph>
-                  </s-banner>
-                }
+            {isRefreshingRules ? (
+              <ListLoadingState message="Refreshing your rules…" />
+            ) : (
+              <Suspense
+                fallback={<ListLoadingState message="Loading your rules…" />}
               >
-                {(data) => (
-                  <RulesList
-                    rules={data.rules}
-                    isSubmitting={isSubmitting}
-                    setEnabled={setEnabled}
-                    deleteRule={deleteRule}
-                    rulePath={rulePath}
-                    goTo={goTo}
-                  />
-                )}
-              </Await>
-            </Suspense>
+                <Await
+                  resolve={dashboardData}
+                  errorElement={
+                    <s-banner tone="critical" heading="Could not load rules">
+                      <s-paragraph>
+                        We couldn&apos;t load your payment rules from Shopify.
+                        Refresh the page or reopen the app from Shopify admin.
+                      </s-paragraph>
+                    </s-banner>
+                  }
+                >
+                  {(data) => (
+                    <RulesList
+                      rules={data.rules}
+                      isSubmitting={isSubmitting}
+                      setEnabled={setEnabled}
+                      deleteRule={deleteRule}
+                      rulePath={rulePath}
+                      goTo={goTo}
+                    />
+                  )}
+                </Await>
+              </Suspense>
+            )}
           </s-section>
         </s-grid-item>
 
