@@ -46,6 +46,11 @@ export function comparePaymentMethodNames(a, b) {
   return a.localeCompare(b, undefined, { sensitivity: "base" });
 }
 
+/** Preset list only — no Admin API (used for fast create-rule first paint). */
+export function getPresetPaymentMethodOptions() {
+  return [...PAYMENT_METHOD_PRESETS].sort(comparePaymentMethodNames);
+}
+
 /**
  * @param {string} name
  */

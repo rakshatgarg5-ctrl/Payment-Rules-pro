@@ -1,6 +1,7 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
 import {
+  Await,
   isRouteErrorResponse,
   useActionData,
   useLoaderData,
@@ -35,6 +36,7 @@ import {
   parsePaymentCustomizationRouteId,
   paymentCustomizationGid,
 } from "../utils/payment-customization-id.server.js";
+import { getPresetPaymentMethodOptions } from "../utils/payment-method-options.js";
 
 const METAFIELD_NAMESPACE = "$app:payment-rules";
 const CONFIG_KEY = "function-configuration";
@@ -376,15 +378,17 @@ function ResourceConditionFields({
 export const loader = async ({ params, request }) => {
   const { id } = params;
   const { admin } = await authenticateAdmin(request);
-  const paymentMethodOptions = await loadPaymentMethodOptions(admin);
 
   if (id === "new") {
     return {
       title: "",
       config: EMPTY_CONFIG,
-      paymentMethodOptions,
+      paymentMethodOptions: getPresetPaymentMethodOptions(),
+      shopPaymentMethodOptions: loadPaymentMethodOptions(admin),
     };
   }
+
+  const paymentMethodOptions = await loadPaymentMethodOptions(admin);
 
   const ruleId = parsePaymentCustomizationRouteId(id);
   if (!ruleId) {
@@ -587,6 +591,48 @@ export const headers = (headersArgs) => {
 };
 
 const SAVE_BAR_ID = "payment-rule-editor-save-bar";
+
+/**
+ * @param {{
+ *   initialOptions: string[],
+ *   shopPaymentMethodOptions?: Promise<string[]>,
+ *   selected: string[],
+ *   order: { name: string, position: number }[],
+ *   renames: { name: string, operation: string, newName: string }[],
+ *   disabled: boolean,
+ *   matchMode: string,
+ *   actionMode: string,
+ *   onMatchModeChange: (matchMode: string) => void,
+ *   onActionModeChange: (mode: string) => void,
+ *   onChange: (hide: string[]) => void,
+ *   onOrderChange: (order: { name: string, position: number }[]) => void,
+ *   onRenamesChange: (renames: { name: string, operation: string, newName: string }[]) => void,
+ * }} props
+ */
+function DeferredPaymentMethodPicker({
+  initialOptions,
+  shopPaymentMethodOptions,
+  ...pickerProps
+}) {
+  const renderPicker = (options) => (
+    <PaymentMethodPicker {...pickerProps} options={options} />
+  );
+
+  if (!shopPaymentMethodOptions) {
+    return renderPicker(initialOptions);
+  }
+
+  return (
+    <Suspense fallback={renderPicker(initialOptions)}>
+      <Await
+        resolve={shopPaymentMethodOptions}
+        errorElement={renderPicker(initialOptions)}
+      >
+        {(options) => renderPicker(options)}
+      </Await>
+    </Suspense>
+  );
+}
 
 export default function RuleEditor() {
   const submit = useSubmit();
@@ -1082,11 +1128,12 @@ export default function RuleEditor() {
         </s-section>
 
         <s-section heading="Actions">
-          <PaymentMethodPicker
+          <DeferredPaymentMethodPicker
+            initialOptions={loaderData.paymentMethodOptions || []}
+            shopPaymentMethodOptions={loaderData.shopPaymentMethodOptions}
             selected={config.actions.hide || []}
             order={config.actions.order || []}
             renames={config.actions.renames || []}
-            options={loaderData.paymentMethodOptions || []}
             disabled={isLoading}
             matchMode={config.actions.matchMode || "contains"}
             actionMode={config.actions.mode || "hide"}
