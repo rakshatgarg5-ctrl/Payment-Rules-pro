@@ -36,7 +36,10 @@ import {
   parsePaymentCustomizationRouteId,
   paymentCustomizationGid,
 } from "../utils/payment-customization-id.server.js";
-import { getPresetPaymentMethodOptions } from "../utils/payment-method-options.js";
+import {
+  collectPaymentMethodNamesFromConfigs,
+  getPresetPaymentMethodOptions,
+} from "../utils/payment-method-options.js";
 
 const METAFIELD_NAMESPACE = "$app:payment-rules";
 const CONFIG_KEY = "function-configuration";
@@ -388,8 +391,6 @@ export const loader = async ({ params, request }) => {
     };
   }
 
-  const paymentMethodOptions = await loadPaymentMethodOptions(admin);
-
   const ruleId = parsePaymentCustomizationRouteId(id);
   if (!ruleId) {
     throw new Response("Rule not found.", { status: 404 });
@@ -444,13 +445,20 @@ export const loader = async ({ params, request }) => {
     }
   }
 
+  const configWithEnabled = {
+    ...config,
+    enabled: customization?.enabled ?? config.enabled,
+  };
+
+  const shopPaymentMethodOptions = loadPaymentMethodOptions(admin);
+
   return {
     title: customization?.title || "",
-    config: await hydrateConfigSelections(admin, {
-      ...config,
-      enabled: customization?.enabled ?? config.enabled,
-    }),
-    paymentMethodOptions,
+    config: await hydrateConfigSelections(admin, configWithEnabled),
+    paymentMethodOptions: collectPaymentMethodNamesFromConfigs([
+      configWithEnabled,
+    ]),
+    shopPaymentMethodOptions,
   };
 };
 
