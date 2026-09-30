@@ -27,7 +27,6 @@ function baseInput(overrides = {}) {
           selectedDeliveryOption: {
             handle: "standard-shipping",
             title: "Standard Shipping",
-            code: "STANDARD",
             deliveryMethodType: "SHIPPING",
           },
         },
@@ -191,6 +190,35 @@ describe("payment rules run", () => {
       actions: { hide: ["PayPal"] },
     });
     expect(run(input).operations).toHaveLength(1);
+  });
+
+  it("matches subscription products via selling plan allocation", () => {
+    const input = baseInput();
+    input.cart.lines[0].sellingPlanAllocation = {
+      sellingPlan: { id: "gid://shopify/SellingPlan/1" },
+    };
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: {
+        logic: "AND",
+        items: [{ type: "subscription_product", operator: "includes_any" }],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(run(input).operations).toHaveLength(1);
+  });
+
+  it("does not match subscription product when cart has no selling plan", () => {
+    const input = baseInput();
+    input.paymentCustomization.metafield.value = JSON.stringify({
+      enabled: true,
+      conditions: {
+        logic: "AND",
+        items: [{ type: "subscription_product", operator: "includes_any" }],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(run(input).operations).toEqual([]);
   });
 
   it("matches customer_tag when customer has tag", () => {
@@ -484,9 +512,9 @@ describe("payment rules run", () => {
     expect(run(input).operations).toHaveLength(1);
   });
 
-  it("matches selected shipping method by code", () => {
+  it("matches selected shipping method by title", () => {
     const input = baseInput();
-    input.cart.deliveryGroups[0].selectedDeliveryOption.code = "OTHER";
+    input.cart.deliveryGroups[0].selectedDeliveryOption.title = "Economy";
     input.paymentCustomization.metafield.value = JSON.stringify({
       enabled: true,
       conditions: {
@@ -495,7 +523,7 @@ describe("payment rules run", () => {
           {
             type: "shipping_rate",
             operator: "in",
-            values: ["FEDEX_GROUND"],
+            values: ["FedEx Ground"],
           },
         ],
       },
@@ -503,7 +531,7 @@ describe("payment rules run", () => {
     });
     expect(run(input).operations).toEqual([]);
 
-    input.cart.deliveryGroups[0].selectedDeliveryOption.code = "FEDEX_GROUND";
+    input.cart.deliveryGroups[0].selectedDeliveryOption.title = "FedEx Ground";
     expect(run(input).operations).toHaveLength(1);
   });
 

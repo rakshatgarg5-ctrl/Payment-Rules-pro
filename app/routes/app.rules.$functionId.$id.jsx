@@ -102,6 +102,8 @@ function defaultCondition(type) {
       return { type, operator: "includes_any", values: [] };
     case "digital_product":
       return { type: "digital_product", operator: "includes_any" };
+    case "subscription_product":
+      return { type: "subscription_product", operator: "includes_any" };
     case "customer_logged_in":
       return { type: "customer_logged_in", value: "logged_in" };
     case "shipping_rate":
@@ -170,6 +172,7 @@ function TypeOptions() {
         <s-option value="product">Specific Product</s-option>
         <s-option value="product_vendor">Product vendor</s-option>
         <s-option value="digital_product">Digital product</s-option>
+        <s-option value="subscription_product">Subscription product</s-option>
       </s-option-group>
       <s-option-group label="Customer">
         <s-option value="customer_tag">Customer Tag</s-option>
@@ -1073,6 +1076,26 @@ export default function RuleEditor() {
                     </s-select>
                   )}
 
+                  {item.type === "subscription_product" && (
+                    <s-select
+                      label="Cart contents"
+                      value={item.operator || "includes_any"}
+                      onChange={(e) =>
+                        updateCondition(index, { operator: readEventValue(e) })
+                      }
+                    >
+                      <s-option value="includes_any">
+                        Cart includes a subscription product
+                      </s-option>
+                      <s-option value="includes_all">
+                        Every item is a subscription product
+                      </s-option>
+                      <s-option value="excludes_all">
+                        Cart has no subscription products
+                      </s-option>
+                    </s-select>
+                  )}
+
                   {item.type === "cart_currency" && (
                     <ListConditionFields
                       item={item}
@@ -1116,7 +1139,7 @@ export default function RuleEditor() {
                       index={index}
                       updateCondition={updateCondition}
                       label="Shipping method names (comma-separated)"
-                      details="Matches the shipping method the customer selected at checkout (title, handle, or code). Partial match supported. Example: Standard Shipping, standard-shipping, Express"
+                      details="Matches the shipping method the customer selected at checkout (title or handle). Partial match supported. Example: Standard Shipping, standard-shipping, Express"
                     />
                   )}
 

@@ -89,7 +89,6 @@ function selectedShippingMethodValues(input) {
     if (!option) continue;
     if (option.title) values.push(String(option.title));
     if (option.handle) values.push(String(option.handle));
-    if (option.code) values.push(String(option.code));
   }
   return values;
 }
@@ -365,6 +364,18 @@ function evaluateCondition(input, condition) {
     return digitalCount > 0;
   }
 
+  if (type === "subscription_product") {
+    const lines = cartLines(input);
+    const subscriptionCount = lines.filter((line) => isSubscriptionLine(line)).length;
+    if (operator === "includes_all") {
+      return lines.length > 0 && subscriptionCount === lines.length;
+    }
+    if (operator === "excludes_all") {
+      return subscriptionCount === 0;
+    }
+    return subscriptionCount > 0;
+  }
+
   if (type === "customer_logged_in") {
     const loggedIn = Boolean(input.cart?.buyerIdentity?.customer);
     return (condition.value || "logged_in") === "guest" ? !loggedIn : loggedIn;
@@ -407,6 +418,13 @@ function matchMembership(actualValues, needles, operator, options = {}) {
 function isDigitalMerchandise(merchandise) {
   if (!merchandise || !("requiresShipping" in merchandise)) return false;
   return merchandise.requiresShipping === false;
+}
+
+/**
+ * @param {{ sellingPlanAllocation?: unknown } | null | undefined} line
+ */
+function isSubscriptionLine(line) {
+  return Boolean(line?.sellingPlanAllocation);
 }
 
 /**

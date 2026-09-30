@@ -74,9 +74,11 @@ export function PaymentMethodRenameEditor({
                 display: "flex",
                 alignItems: "center",
                 gap: "0.5rem",
+                width: "100%",
+                flexWrap: "wrap",
               }}
             >
-              <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+              <div style={{ flex: "1 1 14rem", minWidth: "12rem" }}>
                 <PaymentMethodNameCombobox
                   value={row.name ?? ""}
                   options={options}
@@ -99,6 +101,8 @@ export function PaymentMethodRenameEditor({
                 display: "flex",
                 alignItems: "center",
                 gap: "0.5rem",
+                width: "100%",
+                flexWrap: "wrap",
                 paddingRight: "1.75rem",
               }}
             >

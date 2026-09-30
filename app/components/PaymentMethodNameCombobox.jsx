@@ -245,8 +245,8 @@ export function PaymentMethodNameCombobox({
 
   return (
     <>
-      <div ref={containerRef}>
-        <div ref={anchorRef}>
+      <div ref={containerRef} style={{ width: "100%" }}>
+        <div ref={anchorRef} style={{ width: "100%" }}>
           <s-box
             padding="small"
             borderWidth="base"

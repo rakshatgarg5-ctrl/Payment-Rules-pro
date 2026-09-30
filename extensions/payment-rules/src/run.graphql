@@ -28,12 +28,16 @@ query RunInput($tags_list: [String!]! = [], $collection_ids: [ID!]! = []) {
       selectedDeliveryOption {
         title
         handle
-        code
         deliveryMethodType
       }
     }
     lines {
       quantity
+      sellingPlanAllocation {
+        sellingPlan {
+          recurringDeliveries
+        }
+      }
       merchandise {
         ... on ProductVariant {
           sku

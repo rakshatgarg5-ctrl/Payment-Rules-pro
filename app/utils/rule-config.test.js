@@ -176,6 +176,24 @@ describe("validateRuleConfig", () => {
     });
     expect(digital.errors).toHaveLength(0);
 
+    const subscription = validateRuleConfig({
+      conditions: {
+        logic: "AND",
+        items: [{ type: "subscription_product", operator: "includes_all" }],
+      },
+      actions: { hide: ["PayPal"] },
+    });
+    expect(subscription.errors).toHaveLength(0);
+    expect(
+      formatRuleSummary({
+        conditions: {
+          logic: "AND",
+          items: [{ type: "subscription_product", operator: "includes_any" }],
+        },
+        actions: { hide: ["PayPal"] },
+      }),
+    ).toContain("Cart includes a subscription product");
+
     const currency = validateRuleConfig({
       conditions: {
         logic: "AND",

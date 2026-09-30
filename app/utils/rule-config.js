@@ -36,6 +36,7 @@ const CONDITION_TYPE_LABELS = {
   product: "Product",
   product_vendor: "Product vendor",
   digital_product: "Digital product",
+  subscription_product: "Subscription product",
   customer_tag: "Customer tag",
   customer_logged_in: "Customer logged-in / guest",
   shipping_rate: "Selected shipping method",
@@ -181,6 +182,12 @@ export function formatConditionSummary(item) {
     if (item.operator === "includes_all") return "Every item is a digital product";
     if (item.operator === "excludes_all") return "Cart has no digital products";
     return "Cart includes a digital product";
+  }
+
+  if (type === "subscription_product") {
+    if (item.operator === "includes_all") return "Every item is a subscription product";
+    if (item.operator === "excludes_all") return "Cart has no subscription products";
+    return "Cart includes a subscription product";
   }
 
   if (type === "customer_logged_in") {
@@ -345,6 +352,7 @@ function validateCondition(item, index, errors) {
       }
       return;
     case "digital_product":
+    case "subscription_product":
     case "customer_logged_in":
       return;
     case "product": {
