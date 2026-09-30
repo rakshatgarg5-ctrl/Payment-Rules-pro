@@ -23,6 +23,11 @@ import {
   formatRuleSummary,
   validateRuleConfig,
 } from "../utils/rule-config.js";
+import {
+  getGraphqlErrors,
+  parseGraphqlResponse,
+  readGraphqlJson,
+} from "../utils/graphql-response.server.js";
 
 const METAFIELD_NAMESPACE = "$app:payment-rules";
 const CONFIG_KEY = "function-configuration";
@@ -392,10 +397,13 @@ export const loader = async ({ params, request }) => {
     },
   );
 
-  const responseJson = await response.json();
+  const responseJson = await parseGraphqlResponse(response);
   const customization = responseJson.data?.paymentCustomization;
+  if (!customization) {
+    throw new Response("Rule not found.", { status: 404 });
+  }
   let config = EMPTY_CONFIG;
-  if (customization?.metafield?.value) {
+  if (customization.metafield?.value) {
     try {
       const parsed = JSON.parse(customization.metafield.value);
       config = {
@@ -501,17 +509,21 @@ export const action = async ({ params, request }) => {
       },
     );
 
-    const responseJson = await response.json();
-    const errors =
-      responseJson.data?.paymentCustomizationCreate?.userErrors || [];
-
-    if (errors.length === 0) {
-      return {
-        errors: [],
-        redirectTo: homePath,
-      };
+    const responseJson = await readGraphqlJson(response);
+    const errors = getGraphqlErrors(
+      responseJson,
+      (json) => json.data?.paymentCustomizationCreate?.userErrors,
+    );
+    if (errors.length > 0) {
+      return { errors };
     }
-    return { errors };
+    if (!responseJson.data?.paymentCustomizationCreate?.paymentCustomization) {
+      return { errors: [{ message: "Could not create rule." }] };
+    }
+    return {
+      errors: [],
+      redirectTo: homePath,
+    };
   }
 
   const response = await admin.graphql(
@@ -534,14 +546,18 @@ export const action = async ({ params, request }) => {
     },
   );
 
-  const responseJson = await response.json();
-  const errors =
-    responseJson.data?.paymentCustomizationUpdate?.userErrors || [];
-
-  if (errors.length === 0) {
-    return { errors: [], redirectTo: homePath };
+  const responseJson = await readGraphqlJson(response);
+  const errors = getGraphqlErrors(
+    responseJson,
+    (json) => json.data?.paymentCustomizationUpdate?.userErrors,
+  );
+  if (errors.length > 0) {
+    return { errors };
   }
-  return { errors };
+  if (!responseJson.data?.paymentCustomizationUpdate?.paymentCustomization) {
+    return { errors: [{ message: "Could not save rule." }] };
+  }
+  return { errors: [], redirectTo: homePath };
 };
 
 export const headers = (headersArgs) => {

@@ -2,6 +2,7 @@ import {
   collectPaymentMethodNamesFromConfigs,
   parseRuleConfigValue,
 } from "./payment-method-options.js";
+import { parseGraphqlResponse } from "./graphql-response.server.js";
 
 const METAFIELD_NAMESPACE = "$app:payment-rules";
 const CONFIG_KEY = "function-configuration";
@@ -55,7 +56,7 @@ async function fetchResourceTitles(graphql, ids) {
     { variables: { ids } },
   );
 
-  const responseJson = await response.json();
+  const responseJson = await parseGraphqlResponse(response);
   /** @type {Map<string, string>} */
   const titles = new Map();
 
@@ -141,7 +142,7 @@ export async function loadPaymentMethodOptions(admin) {
       }`,
   );
 
-  const responseJson = await response.json();
+  const responseJson = await parseGraphqlResponse(response);
   const nodes = responseJson.data?.paymentCustomizations?.nodes || [];
   const configs = nodes.map((node) => parseRuleConfigValue(node.metafield?.value));
 

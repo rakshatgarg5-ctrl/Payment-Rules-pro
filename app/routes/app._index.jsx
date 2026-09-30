@@ -12,6 +12,11 @@ import { authenticateAdmin } from "../shopify.server.js";
 import { withSearch } from "../utils/app-path.js";
 import { formatRuleSummary } from "../utils/rule-config.js";
 import { parseRuleConfigValue } from "../utils/payment-method-options.js";
+import {
+  getGraphqlErrors,
+  parseGraphqlResponse,
+  readGraphqlJson,
+} from "../utils/graphql-response.server.js";
 
 const FUNCTION_HANDLE = "payment-rules";
 const METAFIELD_NAMESPACE = "$app:payment-rules";
@@ -36,7 +41,7 @@ async function loadDashboardData(admin) {
         }
       }`,
   );
-  const customizationsJson = await customizationsResponse.json();
+  const customizationsJson = await parseGraphqlResponse(customizationsResponse);
   const nodes = customizationsJson.data?.paymentCustomizations?.nodes || [];
 
   const rules = nodes.map((rule) => {
@@ -96,11 +101,20 @@ export const action = async ({ request }) => {
         variables: { id: gid, enabled },
       },
     );
-    const responseJson = await response.json();
-    const errors =
-      responseJson.data?.paymentCustomizationUpdate?.userErrors || [];
+    const responseJson = await readGraphqlJson(response);
+    const errors = getGraphqlErrors(
+      responseJson,
+      (json) => json.data?.paymentCustomizationUpdate?.userErrors,
+    );
     if (errors.length > 0) {
       return { ok: false, intent, errors };
+    }
+    if (!responseJson.data?.paymentCustomizationUpdate?.paymentCustomization) {
+      return {
+        ok: false,
+        intent,
+        errors: [{ message: "Could not update rule status." }],
+      };
     }
     return { ok: true, intent, enabled };
   }
@@ -120,11 +134,20 @@ export const action = async ({ request }) => {
         variables: { id: gid },
       },
     );
-    const responseJson = await response.json();
-    const errors =
-      responseJson.data?.paymentCustomizationDelete?.userErrors || [];
+    const responseJson = await readGraphqlJson(response);
+    const errors = getGraphqlErrors(
+      responseJson,
+      (json) => json.data?.paymentCustomizationDelete?.userErrors,
+    );
     if (errors.length > 0) {
       return { ok: false, intent, errors };
+    }
+    if (!responseJson.data?.paymentCustomizationDelete?.deletedId) {
+      return {
+        ok: false,
+        intent,
+        errors: [{ message: "Could not delete rule." }],
+      };
     }
     return { ok: true, intent };
   }
@@ -303,7 +326,17 @@ export default function Index() {
             </s-paragraph>
 
             <Suspense fallback={<s-spinner accessibilityLabel="Loading rules" />}>
-              <Await resolve={dashboardData}>
+              <Await
+                resolve={dashboardData}
+                errorElement={
+                  <s-banner tone="critical" heading="Could not load rules">
+                    <s-paragraph>
+                      We couldn&apos;t load your payment rules from Shopify.
+                      Refresh the page or reopen the app from Shopify admin.
+                    </s-paragraph>
+                  </s-banner>
+                }
+              >
                 {(data) => (
                   <RulesList
                     rules={data.rules}
