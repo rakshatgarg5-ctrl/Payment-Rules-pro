@@ -851,7 +851,7 @@ export default function RuleEditor() {
         </s-link>
 
         <s-grid
-          gridTemplateColumns="1fr minmax(260px, 320px)"
+          gridTemplateColumns="minmax(0, 1fr) minmax(300px, 400px)"
           gap="large"
           alignItems="start"
         >
