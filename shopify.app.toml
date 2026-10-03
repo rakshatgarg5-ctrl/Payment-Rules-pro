@@ -2,11 +2,11 @@
 
 client_id = "e66332bf6435a86897a4e1c93f8ee00d"
 name = "HidePayment"
-application_url = "https://example.com"
+application_url = "https://payment-rules-pro-production.up.railway.app"
 embedded = true
 
 [build]
-automatically_update_urls_on_dev = true
+automatically_update_urls_on_dev = false
 
 [webhooks]
 api_version = "2026-07"
@@ -27,4 +27,7 @@ api_version = "2026-07"
 scopes = "write_payment_customizations,read_payment_customizations,read_products"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [
+  "https://payment-rules-pro-production.up.railway.app/auth/callback",
+  "https://payment-rules-pro-production.up.railway.app/auth/shopify/callback",
+]
