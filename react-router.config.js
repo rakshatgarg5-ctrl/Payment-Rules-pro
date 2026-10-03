@@ -4,9 +4,12 @@ export default {
   allowedActionOrigins: [
     "admin.shopify.com",
     "*.myshopify.com",
+    "*.shopify.com",
     "*.trycloudflare.com",
     "*.ngrok-free.app",
     "*.ngrok.io",
+    "*.railway.app",
+    "payment-rules-pro-production.up.railway.app",
     "localhost",
   ],
 }; 
