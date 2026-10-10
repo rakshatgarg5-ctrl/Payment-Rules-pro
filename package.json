@@ -40,6 +40,7 @@
     "react-router": "^7.18.4"
   },
   "devDependencies": {
+    "@shopify/cli": "4.7.0",
     "@shopify/api-codegen-preset": "^1.1.1",
     "@shopify/polaris-types": "^1.0.1",
     "eslint": "^8.38.0",

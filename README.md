@@ -1,4 +1,4 @@
-# PayHide: Hide Payment Methods everywhere
+# PayHide: Hide Payment Methods
 
 Shopify app that lets merchants **hide** checkout payment methods using conditional rules.
 
@@ -28,12 +28,14 @@ This runs `prisma migrate deploy`, which creates the `Session` table required fo
 
 ## Setup
 
+This repo pins **Shopify CLI 4.7.0** (`npm run dev` / `npm run deploy` use the local CLI). Global CLI **4.8+** currently fails with a broken metafield validation schema from Shopify (`standard_metafields` duplicate enum). Use `npm install -g @shopify/cli@4.7.0` if you run `shopify` outside npm scripts.
+
 ```bash
 cd "e:\New Shopify app\payment-rules-pro"
 npm install
 npm run setup
-shopify app config link
-shopify app dev
+npm run config:link
+npm run dev
 ```
 
 Create rules from the app home, or via **Settings → Payments → Customizations**.

@@ -22,7 +22,7 @@ export default function App() {
     <div className={styles.index}>
       <div className={styles.content}>
         <h1 className={styles.heading}>
-          PayHide: Hide Payment Methods everywhere
+          PayHide: Hide Payment Methods
         </h1>
         <p className={styles.text}>
           Hide checkout payment methods with conditional rules tailored to your
