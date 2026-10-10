@@ -1,4 +1,4 @@
-# Payment Rules Pro
+# PayHide: Hide Payment Methods everywhere
 
 Shopify app that lets merchants **hide** checkout payment methods using conditional rules.
 

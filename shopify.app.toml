@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "e66332bf6435a86897a4e1c93f8ee00d"
-name = "HidePayment"
+name = "PayHide: Hide Payment Methods everywhere"
 application_url = "https://payment-rules-pro-production.up.railway.app"
 embedded = true
 

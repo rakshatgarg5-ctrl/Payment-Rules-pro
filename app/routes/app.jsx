@@ -30,7 +30,7 @@ export default function App() {
     <AppProvider embedded apiKey={apiKey}>
       <s-app-nav>
         <s-link href={homeHref} rel="home">
-          Payment rules
+          PayHide
         </s-link>
         <s-link href={supportHref}>Support & tutorials</s-link>
       </s-app-nav>
