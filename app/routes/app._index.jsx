@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import {
+  Await,
   useFetcher,
   useLoaderData,
   useLocation,
@@ -22,30 +23,6 @@ import {
 const FUNCTION_HANDLE = "payment-rules";
 const METAFIELD_NAMESPACE = "$app:payment-rules";
 const CONFIG_KEY = "function-configuration";
-
-/** @param {unknown} error */
-async function readLoadErrorMessage(error) {
-  if (error instanceof Response) {
-    try {
-      const text = await error.text();
-      if (text?.trim()) {
-        return text.trim();
-      }
-    } catch {
-      /* body already consumed */
-    }
-    const status = error.status ? `HTTP ${error.status}` : "Request failed";
-    const statusText = error.statusText?.trim();
-    return statusText ? `${status}: ${statusText}` : status;
-  }
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-  if (error != null) {
-    return String(error);
-  }
-  return "Unknown error.";
-}
 
 /**
  * @param {*} admin
@@ -85,31 +62,11 @@ async function loadDashboardData(admin) {
 }
 
 export const loader = async ({ request }) => {
-  const { admin, session } = await authenticateAdmin(request);
-
-  let dashboardData;
-  let rulesLoadError = null;
-
-  try {
-    dashboardData = await loadDashboardData(admin);
-  } catch (error) {
-    console.error("[PayHide] loadDashboardData failed:", {
-      shop: session.shop,
-      scope: session.scope,
-      error,
-    });
-    rulesLoadError = await readLoadErrorMessage(error);
-    if (rulesLoadError.includes("Forbidden")) {
-      rulesLoadError +=
-        " — Try closing the app, reopening from Shopify Admin → Apps → PayHide. If it persists, uninstall/reinstall to refresh the access token.";
-    }
-    dashboardData = { rules: [] };
-  }
+  const { admin } = await authenticateAdmin(request);
 
   return {
     functionHandle: FUNCTION_HANDLE,
-    dashboardData,
-    rulesLoadError,
+    dashboardData: loadDashboardData(admin),
   };
 };
 
@@ -301,7 +258,7 @@ export function HydrateFallback() {
 }
 
 export default function Index() {
-  const { functionHandle, dashboardData, rulesLoadError } = useLoaderData();
+  const { functionHandle, dashboardData } = useLoaderData();
   const fetcher = useFetcher();
   const revalidator = useRevalidator();
   const location = useLocation();
@@ -354,12 +311,6 @@ export default function Index() {
     fetcher.submit({ intent: "delete", id: rule.id }, { method: "post" });
   };
 
-  useEffect(() => {
-    if (rulesLoadError) {
-      console.error("[PayHide] rulesLoadError:", rulesLoadError);
-    }
-  }, [rulesLoadError]);
-
   return (
     <s-page heading="Payment rules" inlineSize="large">
       <s-button
@@ -384,25 +335,35 @@ export default function Index() {
               Functions.
             </s-paragraph>
 
-            {rulesLoadError ? (
-              <s-banner tone="critical" heading="Could not load rules">
-                <s-paragraph>
-                  <strong>Debug (temporary):</strong> {rulesLoadError}
-                </s-paragraph>
-              </s-banner>
-            ) : null}
-
             {isRefreshingRules ? (
               <ListLoadingState message="Refreshing your rules…" />
             ) : (
-              <RulesList
-                rules={dashboardData.rules}
-                isSubmitting={isSubmitting}
-                setEnabled={setEnabled}
-                deleteRule={deleteRule}
-                rulePath={rulePath}
-                goTo={goTo}
-              />
+              <Suspense
+                fallback={<ListLoadingState message="Loading your rules…" />}
+              >
+                <Await
+                  resolve={dashboardData}
+                  errorElement={
+                    <s-banner tone="critical" heading="Could not load rules">
+                      <s-paragraph>
+                        We couldn&apos;t load your payment rules from Shopify.
+                        Refresh the page or reopen the app from Shopify admin.
+                      </s-paragraph>
+                    </s-banner>
+                  }
+                >
+                  {(data) => (
+                    <RulesList
+                      rules={data.rules}
+                      isSubmitting={isSubmitting}
+                      setEnabled={setEnabled}
+                      deleteRule={deleteRule}
+                      rulePath={rulePath}
+                      goTo={goTo}
+                    />
+                  )}
+                </Await>
+              </Suspense>
             )}
           </s-section>
         </s-grid-item>
