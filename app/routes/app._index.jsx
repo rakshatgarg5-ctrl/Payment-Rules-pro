@@ -279,10 +279,6 @@ export default function Index() {
   };
 
   useEffect(() => {
-    void shopify.saveBar.hide("payment-rule-editor-save-bar");
-  }, [shopify]);
-
-  useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data) return;
 
     if (fetcher.data.ok) {
