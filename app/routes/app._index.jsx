@@ -1,6 +1,7 @@
 import { Suspense, useEffect } from "react";
 import {
   Await,
+  useAsyncError,
   useFetcher,
   useLoaderData,
   useLocation,
@@ -23,6 +24,51 @@ import {
 const FUNCTION_HANDLE = "payment-rules";
 const METAFIELD_NAMESPACE = "$app:payment-rules";
 const CONFIG_KEY = "function-configuration";
+
+/** @param {unknown} error */
+function formatRulesLoadError(error) {
+  if (error instanceof Response) {
+    const status = error.status ? `HTTP ${error.status}` : "Request failed";
+    const text = error.statusText?.trim();
+    return text ? `${status}: ${text}` : status;
+  }
+  if (error && typeof error === "object") {
+    const record = error;
+    if (typeof record.data === "string" && record.data.trim()) {
+      return record.data;
+    }
+    if (typeof record.message === "string" && record.message.trim()) {
+      return record.message;
+    }
+    if (typeof record.statusText === "string" && record.statusText.trim()) {
+      return record.statusText;
+    }
+    if (record.status) {
+      return `HTTP ${record.status}`;
+    }
+  }
+  if (error != null) {
+    return String(error);
+  }
+  return "Unknown error.";
+}
+
+function RulesLoadErrorBanner() {
+  const error = useAsyncError();
+  const detail = formatRulesLoadError(error);
+
+  useEffect(() => {
+    console.error("[PayHide] loadDashboardData failed:", error);
+  }, [error]);
+
+  return (
+    <s-banner tone="critical" heading="Could not load rules">
+      <s-paragraph>
+        <s-text type="strong">Debug (temporary):</s-text> {detail}
+      </s-paragraph>
+    </s-banner>
+  );
+}
 
 /**
  * @param {*} admin
@@ -343,14 +389,7 @@ export default function Index() {
               >
                 <Await
                   resolve={dashboardData}
-                  errorElement={
-                    <s-banner tone="critical" heading="Could not load rules">
-                      <s-paragraph>
-                        We couldn&apos;t load your payment rules from Shopify.
-                        Refresh the page or reopen the app from Shopify admin.
-                      </s-paragraph>
-                    </s-banner>
-                  }
+                  errorElement={<RulesLoadErrorBanner />}
                 >
                   {(data) => (
                     <RulesList
