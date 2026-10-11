@@ -1,7 +1,5 @@
-import { Suspense, useEffect } from "react";
+import { useEffect } from "react";
 import {
-  Await,
-  useAsyncError,
   useFetcher,
   useLoaderData,
   useLocation,
@@ -26,48 +24,27 @@ const METAFIELD_NAMESPACE = "$app:payment-rules";
 const CONFIG_KEY = "function-configuration";
 
 /** @param {unknown} error */
-function formatRulesLoadError(error) {
+async function readLoadErrorMessage(error) {
   if (error instanceof Response) {
+    try {
+      const text = await error.text();
+      if (text?.trim()) {
+        return text.trim();
+      }
+    } catch {
+      /* body already consumed */
+    }
     const status = error.status ? `HTTP ${error.status}` : "Request failed";
-    const text = error.statusText?.trim();
-    return text ? `${status}: ${text}` : status;
+    const statusText = error.statusText?.trim();
+    return statusText ? `${status}: ${statusText}` : status;
   }
-  if (error && typeof error === "object") {
-    const record = error;
-    if (typeof record.data === "string" && record.data.trim()) {
-      return record.data;
-    }
-    if (typeof record.message === "string" && record.message.trim()) {
-      return record.message;
-    }
-    if (typeof record.statusText === "string" && record.statusText.trim()) {
-      return record.statusText;
-    }
-    if (record.status) {
-      return `HTTP ${record.status}`;
-    }
+  if (error instanceof Error && error.message) {
+    return error.message;
   }
   if (error != null) {
     return String(error);
   }
   return "Unknown error.";
-}
-
-function RulesLoadErrorBanner() {
-  const error = useAsyncError();
-  const detail = formatRulesLoadError(error);
-
-  useEffect(() => {
-    console.error("[PayHide] loadDashboardData failed:", error);
-  }, [error]);
-
-  return (
-    <s-banner tone="critical" heading="Could not load rules">
-      <s-paragraph>
-        <s-text type="strong">Debug (temporary):</s-text> {detail}
-      </s-paragraph>
-    </s-banner>
-  );
 }
 
 /**
@@ -110,9 +87,21 @@ async function loadDashboardData(admin) {
 export const loader = async ({ request }) => {
   const { admin } = await authenticateAdmin(request);
 
+  let dashboardData;
+  let rulesLoadError = null;
+
+  try {
+    dashboardData = await loadDashboardData(admin);
+  } catch (error) {
+    console.error("[PayHide] loadDashboardData failed:", error);
+    rulesLoadError = await readLoadErrorMessage(error);
+    dashboardData = { rules: [] };
+  }
+
   return {
     functionHandle: FUNCTION_HANDLE,
-    dashboardData: loadDashboardData(admin),
+    dashboardData,
+    rulesLoadError,
   };
 };
 
@@ -304,7 +293,7 @@ export function HydrateFallback() {
 }
 
 export default function Index() {
-  const { functionHandle, dashboardData } = useLoaderData();
+  const { functionHandle, dashboardData, rulesLoadError } = useLoaderData();
   const fetcher = useFetcher();
   const revalidator = useRevalidator();
   const location = useLocation();
@@ -357,6 +346,12 @@ export default function Index() {
     fetcher.submit({ intent: "delete", id: rule.id }, { method: "post" });
   };
 
+  useEffect(() => {
+    if (rulesLoadError) {
+      console.error("[PayHide] rulesLoadError:", rulesLoadError);
+    }
+  }, [rulesLoadError]);
+
   return (
     <s-page heading="Payment rules" inlineSize="large">
       <s-button
@@ -381,28 +376,25 @@ export default function Index() {
               Functions.
             </s-paragraph>
 
+            {rulesLoadError ? (
+              <s-banner tone="critical" heading="Could not load rules">
+                <s-paragraph>
+                  <strong>Debug (temporary):</strong> {rulesLoadError}
+                </s-paragraph>
+              </s-banner>
+            ) : null}
+
             {isRefreshingRules ? (
               <ListLoadingState message="Refreshing your rules…" />
             ) : (
-              <Suspense
-                fallback={<ListLoadingState message="Loading your rules…" />}
-              >
-                <Await
-                  resolve={dashboardData}
-                  errorElement={<RulesLoadErrorBanner />}
-                >
-                  {(data) => (
-                    <RulesList
-                      rules={data.rules}
-                      isSubmitting={isSubmitting}
-                      setEnabled={setEnabled}
-                      deleteRule={deleteRule}
-                      rulePath={rulePath}
-                      goTo={goTo}
-                    />
-                  )}
-                </Await>
-              </Suspense>
+              <RulesList
+                rules={dashboardData.rules}
+                isSubmitting={isSubmitting}
+                setEnabled={setEnabled}
+                deleteRule={deleteRule}
+                rulePath={rulePath}
+                goTo={goTo}
+              />
             )}
           </s-section>
         </s-grid-item>
