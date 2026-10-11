@@ -85,7 +85,7 @@ async function loadDashboardData(admin) {
 }
 
 export const loader = async ({ request }) => {
-  const { admin } = await authenticateAdmin(request);
+  const { admin, session } = await authenticateAdmin(request);
 
   let dashboardData;
   let rulesLoadError = null;
@@ -93,8 +93,16 @@ export const loader = async ({ request }) => {
   try {
     dashboardData = await loadDashboardData(admin);
   } catch (error) {
-    console.error("[PayHide] loadDashboardData failed:", error);
+    console.error("[PayHide] loadDashboardData failed:", {
+      shop: session.shop,
+      scope: session.scope,
+      error,
+    });
     rulesLoadError = await readLoadErrorMessage(error);
+    if (rulesLoadError.includes("Forbidden")) {
+      rulesLoadError +=
+        " — Try closing the app, reopening from Shopify Admin → Apps → PayHide. If it persists, uninstall/reinstall to refresh the access token.";
+    }
     dashboardData = { rules: [] };
   }
 
