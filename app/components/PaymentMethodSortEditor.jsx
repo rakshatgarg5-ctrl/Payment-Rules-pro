@@ -78,34 +78,31 @@ export function PaymentMethodSortEditor({
           <div
             key={index}
             style={{
-              display: "flex",
-              alignItems: "center",
+              display: "grid",
+              gridTemplateColumns: "9rem minmax(0, 1fr) auto",
               gap: "0.5rem",
-              flexWrap: "wrap",
+              alignItems: "end",
+              width: "100%",
             }}
           >
-            <div style={{ width: "9rem", flexShrink: 0 }}>
-              <s-text-field
-                label="Position"
-                labelAccessibilityVisibility="exclusive"
-                value={row.position == null ? "" : String(row.position)}
-                placeholder="Position (e.g. 5)"
-                disabled={disabled}
-                autocomplete="off"
-                onInput={(e) =>
-                  updateRow(index, { position: readEventValue(e) })
-                }
-              />
-            </div>
-            <div style={{ flex: "1 1 14rem", minWidth: "12rem" }}>
-              <PaymentMethodNameCombobox
-                value={row.name ?? ""}
-                options={options}
-                disabled={disabled}
-                placeholder="Select or manually enter a payment name"
-                onChange={(name) => updateRow(index, { name })}
-              />
-            </div>
+            <s-text-field
+              label="Position"
+              labelAccessibilityVisibility="exclusive"
+              value={row.position == null ? "" : String(row.position)}
+              placeholder="Position (e.g. 5)"
+              disabled={disabled}
+              autocomplete="off"
+              onInput={(e) =>
+                updateRow(index, { position: readEventValue(e) })
+              }
+            />
+            <PaymentMethodNameCombobox
+              value={row.name ?? ""}
+              options={options}
+              disabled={disabled}
+              placeholder="Select or manually enter a payment name"
+              onChange={(name) => updateRow(index, { name })}
+            />
             <s-clickable
               disabled={disabled}
               accessibilityLabel="Remove payment method"

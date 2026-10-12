@@ -71,22 +71,20 @@ export function PaymentMethodRenameEditor({
           <s-stack key={index} direction="block" gap="small">
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) auto",
                 gap: "0.5rem",
+                alignItems: "end",
                 width: "100%",
-                flexWrap: "wrap",
               }}
             >
-              <div style={{ flex: "1 1 14rem", minWidth: "12rem" }}>
-                <PaymentMethodNameCombobox
-                  value={row.name ?? ""}
-                  options={options}
-                  disabled={disabled}
-                  placeholder="Select or manually enter a payment name"
-                  onChange={(name) => updateRow(index, { name })}
-                />
-              </div>
+              <PaymentMethodNameCombobox
+                value={row.name ?? ""}
+                options={options}
+                disabled={disabled}
+                placeholder="Select or manually enter a payment name"
+                onChange={(name) => updateRow(index, { name })}
+              />
               <s-clickable
                 disabled={disabled}
                 accessibilityLabel="Remove payment method"
@@ -98,40 +96,36 @@ export function PaymentMethodRenameEditor({
 
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
+                display: "grid",
+                gridTemplateColumns: "11rem minmax(0, 1fr)",
                 gap: "0.5rem",
+                alignItems: "end",
                 width: "100%",
-                flexWrap: "wrap",
-                paddingRight: "1.75rem",
               }}
             >
-              <div style={{ width: "11rem", flexShrink: 0 }}>
-                <s-select
-                  label="Rename action"
-                  labelAccessibilityVisibility="exclusive"
-                  value={row.operation || RENAME_OPERATION_REPLACE}
-                  disabled={disabled}
-                  onChange={(e) =>
-                    updateRow(index, { operation: readEventValue(e) })
-                  }
-                >
-                  <s-option value={RENAME_OPERATION_REPLACE}>Replace</s-option>
-                </s-select>
-              </div>
-              <div style={{ flex: "1 1 auto", minWidth: 0 }}>
-                <s-text-field
-                  label="New payment name"
-                  labelAccessibilityVisibility="exclusive"
-                  value={row.newName ?? ""}
-                  placeholder="New payment name"
-                  disabled={disabled}
-                  autocomplete="off"
-                  onInput={(e) =>
-                    updateRow(index, { newName: readEventValue(e) })
-                  }
-                />
-              </div>
+              <s-select
+                label="Rename action"
+                labelAccessibilityVisibility="exclusive"
+                value={row.operation || RENAME_OPERATION_REPLACE}
+                disabled={disabled}
+                style={{ width: "100%" }}
+                onChange={(e) =>
+                  updateRow(index, { operation: readEventValue(e) })
+                }
+              >
+                <s-option value={RENAME_OPERATION_REPLACE}>Replace</s-option>
+              </s-select>
+              <s-text-field
+                label="New payment name"
+                labelAccessibilityVisibility="exclusive"
+                value={row.newName ?? ""}
+                placeholder="New payment name"
+                disabled={disabled}
+                autocomplete="off"
+                onInput={(e) =>
+                  updateRow(index, { newName: readEventValue(e) })
+                }
+              />
             </div>
           </s-stack>
         ))}
