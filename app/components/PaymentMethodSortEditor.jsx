@@ -79,7 +79,10 @@ export function PaymentMethodSortEditor({
             key={index}
             style={{
               display: "grid",
-              gridTemplateColumns: "9rem minmax(0, 1fr) auto",
+              gridTemplateColumns:
+                index > 0
+                  ? "9rem minmax(0, 1fr) auto"
+                  : "9rem minmax(0, 1fr)",
               gap: "0.5rem",
               alignItems: "center",
               width: "100%",
@@ -104,22 +107,24 @@ export function PaymentMethodSortEditor({
               placeholder="Select or manually enter a payment name"
               onChange={(name) => updateRow(index, { name })}
             />
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                alignSelf: "center",
-              }}
-            >
-              <s-clickable
-                disabled={disabled}
-                accessibilityLabel="Remove payment method"
-                onClick={() => removeRow(index)}
+            {index > 0 ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  alignSelf: "center",
+                }}
               >
-                <s-icon type="x-circle" />
-              </s-clickable>
-            </div>
+                <s-clickable
+                  disabled={disabled}
+                  accessibilityLabel="Remove payment method"
+                  onClick={() => removeRow(index)}
+                >
+                  <s-icon type="x-circle" />
+                </s-clickable>
+              </div>
+            ) : null}
           </div>
         ))}
       </s-stack>

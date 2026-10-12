@@ -72,7 +72,8 @@ export function PaymentMethodRenameEditor({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "minmax(0, 1fr) auto",
+                gridTemplateColumns:
+                  index > 0 ? "minmax(0, 1fr) auto" : "minmax(0, 1fr)",
                 gap: "0.5rem",
                 alignItems: "center",
                 width: "100%",
@@ -86,22 +87,24 @@ export function PaymentMethodRenameEditor({
                 placeholder="Select or manually enter a payment name"
                 onChange={(name) => updateRow(index, { name })}
               />
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  alignSelf: "center",
-                }}
-              >
-                <s-clickable
-                  disabled={disabled}
-                  accessibilityLabel="Remove payment method"
-                  onClick={() => removeRow(index)}
+              {index > 0 ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    alignSelf: "center",
+                  }}
                 >
-                  <s-icon type="x-circle" />
-                </s-clickable>
-              </div>
+                  <s-clickable
+                    disabled={disabled}
+                    accessibilityLabel="Remove payment method"
+                    onClick={() => removeRow(index)}
+                  >
+                    <s-icon type="x-circle" />
+                  </s-clickable>
+                </div>
+              ) : null}
             </div>
 
             <div
