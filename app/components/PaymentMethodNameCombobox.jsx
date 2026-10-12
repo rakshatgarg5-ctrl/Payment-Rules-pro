@@ -62,6 +62,7 @@ function resolvePlacement(anchorRect, panelHeight) {
  *   onChange: (name: string) => void,
  *   disabled?: boolean,
  *   placeholder?: string,
+ *   compact?: boolean,
  * }} props
  */
 export function PaymentMethodNameCombobox({
@@ -70,6 +71,7 @@ export function PaymentMethodNameCombobox({
   onChange,
   disabled = false,
   placeholder = "Select or manually enter a payment name",
+  compact = false,
 }) {
   const listboxId = useId();
   const [query, setQuery] = useState(value || "");
@@ -243,36 +245,44 @@ export function PaymentMethodNameCombobox({
     </s-box>
   );
 
+  const searchField = (
+    <s-search-field
+      ref={searchFieldRef}
+      label="Payment method"
+      labelAccessibilityVisibility="exclusive"
+      value={query}
+      disabled={disabled}
+      placeholder={placeholder}
+      autocomplete="off"
+      aria-expanded={open ? "true" : "false"}
+      aria-controls={open ? listboxId : undefined}
+      onInput={(e) => {
+        const next = readEventValue(e);
+        setQuery(next);
+        onChange(next);
+        setOpen(true);
+      }}
+      onKeyDown={handleSearchKeyDown}
+    />
+  );
+
   return (
     <>
       <div ref={containerRef} style={{ width: "100%" }}>
         <div ref={anchorRef} style={{ width: "100%" }}>
-          <s-box
-            padding="small"
-            borderWidth="base"
-            borderRadius="base"
-            borderColor="subdued"
-            background="base"
-          >
-            <s-search-field
-              ref={searchFieldRef}
-              label="Payment method"
-              labelAccessibilityVisibility="exclusive"
-              value={query}
-              disabled={disabled}
-              placeholder={placeholder}
-              autocomplete="off"
-              aria-expanded={open ? "true" : "false"}
-              aria-controls={open ? listboxId : undefined}
-              onInput={(e) => {
-                const next = readEventValue(e);
-                setQuery(next);
-                onChange(next);
-                setOpen(true);
-              }}
-              onKeyDown={handleSearchKeyDown}
-            />
-          </s-box>
+          {compact ? (
+            searchField
+          ) : (
+            <s-box
+              padding="small"
+              borderWidth="base"
+              borderRadius="base"
+              borderColor="subdued"
+              background="base"
+            >
+              {searchField}
+            </s-box>
+          )}
         </div>
       </div>
 
