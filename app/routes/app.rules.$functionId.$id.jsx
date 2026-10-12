@@ -912,31 +912,32 @@ export default function RuleEditor() {
                 <s-stack direction="block" gap="base">
                   <div
                     style={{
-                      display: "flex",
-                      alignItems: "flex-start",
+                      display: "grid",
+                      gridTemplateColumns:
+                        index > 0 ? "minmax(0, 1fr) auto" : "minmax(0, 1fr)",
                       gap: "0.5rem",
+                      alignItems: "end",
                     }}
                   >
-                    <div style={{ flex: "1 1 auto", minWidth: 0 }}>
-                      <s-select
-                        label="Type"
-                        value={item.type || "always"}
-                        onChange={(e) => {
-                          const nextType = readEventValue(e);
-                          setConfig((prev) => {
-                            const items = [...prev.conditions.items];
-                            items[index] = defaultCondition(nextType);
-                            return {
-                              ...prev,
-                              conditions: { ...prev.conditions, items },
-                            };
-                          });
-                        }}
-                      >
-                        <TypeOptions />
-                      </s-select>
-                    </div>
-                    {index > 0 && (
+                    <s-select
+                      label="Type"
+                      value={item.type || "always"}
+                      style={{ width: "100%" }}
+                      onChange={(e) => {
+                        const nextType = readEventValue(e);
+                        setConfig((prev) => {
+                          const items = [...prev.conditions.items];
+                          items[index] = defaultCondition(nextType);
+                          return {
+                            ...prev,
+                            conditions: { ...prev.conditions, items },
+                          };
+                        });
+                      }}
+                    >
+                      <TypeOptions />
+                    </s-select>
+                    {index > 0 ? (
                       <s-clickable
                         disabled={isLoading}
                         accessibilityLabel="Remove condition"
@@ -944,7 +945,7 @@ export default function RuleEditor() {
                       >
                         <s-icon type="x-circle" />
                       </s-clickable>
-                    )}
+                    ) : null}
                   </div>
 
                   {item.type === "always" && (
