@@ -10,7 +10,7 @@ export const loader = async ({ request }) => {
 
 export default function SupportPage() {
   return (
-    <s-page heading="Support & tutorials">
+    <s-page heading="Support">
       <s-section>
         <s-stack direction="block" gap="base">
           <s-heading fontSize="large-400">Need help?</s-heading>

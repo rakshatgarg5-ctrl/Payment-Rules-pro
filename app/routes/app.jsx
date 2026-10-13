@@ -32,7 +32,7 @@ export default function App() {
         <s-link href={homeHref} rel="home">
           PayHide
         </s-link>
-        <s-link href={supportHref}>Support & tutorials</s-link>
+        <s-link href={supportHref}>Support</s-link>
       </s-app-nav>
       {isRouteLoading ? (
         <s-box padding="large">
