@@ -21,40 +21,38 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>
-          PayHide: Hide Payment Methods
-        </h1>
+        <h1 className={styles.heading}>PayHide: Hide Payment Methods</h1>
         <p className={styles.text}>
           Hide checkout payment methods with conditional rules tailored to your
           store.
         </p>
+        <p className={styles.installHint}>
+          To install or open the app, go to{" "}
+          <strong>Shopify Admin → Apps → PayHide: Hide Payment Methods</strong>.
+        </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
             <label className={styles.label}>
-              <span>Shop domain</span>
-              <input className={styles.input} type="text" name="shop" />
-              <span>e.g: my-shop-domain.myshopify.com</span>
+              <span>Shop domain (existing installs)</span>
+              <input
+                className={styles.input}
+                type="text"
+                name="shop"
+                placeholder="your-store.myshopify.com"
+                autoComplete="off"
+              />
             </label>
             <button className={styles.button} type="submit">
               Log in
             </button>
           </Form>
         )}
-        <ul className={styles.list}>
-          <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
-          </li>
-          <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
-          </li>
-          <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
-          </li>
-        </ul>
+        <p className={styles.footer}>
+          <a href="/privacy-policy.html">Privacy Policy</a>
+          {" · "}
+          SwiftLogic
+        </p>
       </div>
     </div>
   );
-} 
+}

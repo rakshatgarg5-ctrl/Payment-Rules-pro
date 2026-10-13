@@ -2,7 +2,7 @@
   align-items: center;
   display: flex;
   justify-content: center;
-  height: 100%;
+  min-height: 100%;
   width: 100%;
   text-align: center;
   padding: 1rem;
@@ -16,20 +16,30 @@
 
 .text {
   font-size: 1.2rem;
-  padding-bottom: 2rem;
+  padding-bottom: 1rem;
+}
+
+.installHint {
+  margin: 0;
+  max-width: 28rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #444;
 }
 
 .content {
   display: grid;
-  gap: 2rem;
+  gap: 1.25rem;
+  max-width: 32rem;
 }
 
 .form {
   display: flex;
-  align-items: center;
-  justify-content: flex-start;
+  align-items: flex-end;
+  justify-content: center;
   margin: 0 auto;
-  gap: 1rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .label {
@@ -37,7 +47,7 @@
   gap: 0.2rem;
   max-width: 20rem;
   text-align: left;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .input {
@@ -45,29 +55,19 @@
 }
 
 .button {
-  padding: 0.4rem;
+  padding: 0.4rem 0.75rem;
 }
 
-.list {
-  list-style: none;
-  padding: 0;
-  padding-top: 3rem;
-  margin: 0;
-  display: flex;
-  gap: 2rem;
+.footer {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
 }
 
-.list > li {
-  max-width: 20rem;
-  text-align: left;
+.footer a {
+  color: #2c6ecb;
+  text-decoration: none;
 }
 
-@media only screen and (max-width: 50rem) {
-  .list {
-    display: block;
-  }
-
-  .list > li {
-    padding-bottom: 1rem;
-  }
+.footer a:hover {
+  text-decoration: underline;
 }
